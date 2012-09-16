@@ -11,6 +11,7 @@ int main(int argc, char *argv[]){
 
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
+  char *version = "$Revision$";
   int len;
 
   /* define boolean ints for params */
@@ -60,6 +61,8 @@ int main(int argc, char *argv[]){
 
   if(help==1){
     
+  } else if(vers==1){
+    printf("Blowfish Cipher Tool - Version: %s\n", version);
   }
   
   /* don't worry about these two: just define/use them */
