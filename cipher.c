@@ -70,28 +70,37 @@ int main(int argc, char *argv[]){
     printf("   -h        :  Show help screen (you are looking at it) \n");
     printf("   -m        :  Enable memory mapping - mmap() \n");
   } else if(vers==1){
-    printf("Blowfish Cipher Tool - Version: %s\n", version);
+    printf("Blowfish Cipher Tool - %s\n", version);
+  } else{
+    if(deco==1 && enco==0){
+
+
+    } else if(deco==0 && enco==1){
+
+
+    } else {
+      printf("Error: Must use ONLY Encrypt (-e) OR Decrypt (-d)\n");
+    }	
+    /* don't worry about these two: just define/use them */
+    // int n = 0;  /* internal blowfish variables */
+    // unsigned char iv[8];  /* Initialization Vector */
+
+    /* fill the IV with zeros (or any other fixed data) */
+    // memset(iv, 0, 8);
+
+    /* call this function once to setup the cipher key */
+    // BF_set_key(&key, 16, temp_buf);
+
+    /*
+     * This is how you encrypt an input char* buffer "from", of length "len"
+     * onto output buffer "to", using key "key".  Jyst pass "iv" and "&n" as
+     * shown, and don't forget to actually tell the function to BF_ENCRYPT.
+     */
+    // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_ENCRYPT);
+
+    /* Decrypting is the same: just pass BF_DECRYPT instead */
+    // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_DECRYPT);
+  
+    return 0;
   }
-  
-  /* don't worry about these two: just define/use them */
-  // int n = 0;  /* internal blowfish variables */
-  // unsigned char iv[8];  /* Initialization Vector */
-
-  /* fill the IV with zeros (or any other fixed data) */
-  // memset(iv, 0, 8);
-
-  /* call this function once to setup the cipher key */
-  // BF_set_key(&key, 16, temp_buf);
-
-  /*
-   * This is how you encrypt an input char* buffer "from", of length "len"
-   * onto output buffer "to", using key "key".  Jyst pass "iv" and "&n" as
-   * shown, and don't forget to actually tell the function to BF_ENCRYPT.
-   */
-  // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_ENCRYPT);
-
-  /* Decrypting is the same: just pass BF_DECRYPT instead */
-  // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_DECRYPT);
-  
-  return 0;
 }
