@@ -11,7 +11,7 @@ int main(int argc, char *argv[]){
 
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
-  char *version = "$Revision: 1.2 $";
+  char *version = "$Revision: 1.3 $";
   int len;
 
   /* define boolean ints for params */
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]){
 
 
     } else {
-      printf("Error: Must use ONLY Encrypt (-e) OR Decrypt (-d)\n");
+      fprintf(stderr, "Error: Must use EITHER Encrypt (-e) OR Decrypt (-d)\n");
     }	
     /* don't worry about these two: just define/use them */
     // int n = 0;  /* internal blowfish variables */
@@ -101,6 +101,6 @@ int main(int argc, char *argv[]){
     /* Decrypting is the same: just pass BF_DECRYPT instead */
     // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_DECRYPT);
   
-    return 0;
   }
+  return 0;
 }
