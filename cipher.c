@@ -11,7 +11,7 @@ int main(int argc, char *argv[]){
 
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
-  char *version = "$Revision$";
+  char *version = "$Revision: 1.2 $";
   int len;
 
   /* define boolean ints for params */
@@ -44,7 +44,7 @@ int main(int argc, char *argv[]){
       pass = 1;
       break;
     default:
-      fprintf(stderr, "Usage: %s [-devhm] [-p PASSWORD] <infile> <outfile>\n", argv[0]);
+      fprintf(stderr, "Usage: %s [OPTIONS] [-p PASSWORD] <infile> <outfile>\n", argv[0]);
       exit(EXIT_FAILURE);
     }
   }
@@ -60,7 +60,15 @@ int main(int argc, char *argv[]){
   }
 
   if(help==1){
-    
+    printf("Blowfish Cipher Tool by Cody Moore \n");
+    printf("Usage: %s [OPTIONS] [-p PASSWORD] <infile> <outfile> \n", argv[0]);
+    printf("Options: \n");
+    printf("   -p [PASS] :  Use [PASS] as password (skip prompt) \n");
+    printf("   -d        :  Decrypt <infile> to <outfile> \n");
+    printf("   -e        :  Encrypt <infile> to <outfile> \n");
+    printf("   -v        :  Print out version number \n");
+    printf("   -h        :  Show help screen (you are looking at it) \n");
+    printf("   -m        :  Enable memory mapping - mmap() \n");
   } else if(vers==1){
     printf("Blowfish Cipher Tool - Version: %s\n", version);
   }
