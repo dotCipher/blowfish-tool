@@ -11,18 +11,21 @@ int main(int argc, char *argv[]){
 
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
-  char *version = "$Revision: 1.4 $";
+  //char temp_buf_chk[16];
+  char *version = "$Revision: 1.5 $";
+  char *infile_name;
+  char *outfile_name;
   int len;
 
   /* define boolean ints for params */
-  int deco, enco, vers, help, mmap, pass, opt;
+  int deco, enco, vers, help, mmap, pass, opt, safe;
   /* define a structure to hold the key */
   // BF_KEY key;
 
   /* initialize and check params */
   len = 128;
-  deco = 0; enco = 0; vers = 0; help = 0; mmap = 0; pass = 0;
-  while((opt = getopt(argc, argv, "devhmp:")) != -1) {
+  deco = 0; enco = 0; vers = 0; help = 0; mmap = 0; pass = 0; safe = 0;
+  while((opt = getopt(argc, argv, "devhmsp:")) != -1) {
     switch(opt){
     case 'd':
       deco = 1;
@@ -38,6 +41,9 @@ int main(int argc, char *argv[]){
       break;
     case 'm':
       mmap = 1;
+      break;
+    case 's':
+      safe = 1;
       break;
     case 'p':
       strcpy(temp_buf, optarg);
@@ -69,18 +75,49 @@ int main(int argc, char *argv[]){
     printf("   -v        :  Print out version number \n");
     printf("   -h        :  Show help screen (you are looking at it) \n");
     printf("   -m        :  Enable memory mapping - mmap() \n");
+    printf("   -s        :  Safe Mode (prompt for password twice\n");
   } else if(vers==1){
     printf("Blowfish Cipher Tool - %s\n", version);
   } else{
+    // Take <infile> and <outfile>
+    infile_name=(char*)malloc(sizeof(char)*strlen(argv[argc-2]));
+    outfile_name=(char*)malloc(sizeof(char)*strlen(argv[argc-1]));
+    strcpy(outfile_name, argv[argc-1]);
+    strcpy(infile_name, argv[argc-2]);
+    if(DEBUG==1){
+      printf("infile_name=%s\n",infile_name);
+      printf("outfile_name=%s\n",outfile_name);
+    }
+    // Decryption Mode
     if(deco==1 && enco==0){
-
-
+      // Password in cmd arg
+      if(pass==1){
+        // temp_buf has password
+        
+      } else{
+        if(safe==1){
+      
+        } else{
+      
+        }
+      }
+    // Encryption Mode
     } else if(deco==0 && enco==1){
+      // Password in the cmd arg
+      if(pass==1){
+        // temp_buf has password
+      } else{
+        if(safe==1){
 
+        } else{
 
+        }
+      }
+    // Both Encrypt/Decrypt OR Neither Encrypt/Decrypt
     } else {
       fprintf(stderr, "Error: Must use EITHER Encrypt (-e) OR Decrypt (-d)\n");
     }	
+
     /* don't worry about these two: just define/use them */
     // int n = 0;  /* internal blowfish variables */
     // unsigned char iv[8];  /* Initialization Vector */
