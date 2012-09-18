@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -13,7 +12,19 @@ int fileExists(char *fName){
   return (stat(fName, &buffer)==0);
 }
 
+int isDirectory(char *path){
+  struct stat buffer;
+  stat(path,&buffer);
+  if(buffer.st_mode & S_IFDIR){
+    return 0;
+  } else {
+    return 1;
+  }
+}
+
 int main(int argc, char *argv[]){
+  // 1=Enable Debug Mode
+  // 0=Disable Debug Mode
   int DEBUG = 1;
 
   //char from[128], to[128];
@@ -21,7 +32,9 @@ int main(int argc, char *argv[]){
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   //char temp_buf_chk[16];
-  char *version = "$Revision: 1.6 $";
+  char *version = "$Revision: 1.7 $";
+  int passArgNum = 0;
+  
   /* File names/descriptors/stats*/
   char *infile_name;
   char *outfile_name;
@@ -60,6 +73,9 @@ int main(int argc, char *argv[]){
       break;
     case 'p':
       strcpy(temp_buf, optarg);
+      // Gets argc number from optind for comparison
+      //  and error checking later
+      passArgNum = optind-1;
       pass = 1;
       break;
     default:
@@ -70,12 +86,14 @@ int main(int argc, char *argv[]){
   
   // DEBUGGING CODE //
   if(DEBUG==1){
+    printf("\n[----- DEBUGGING ENABLED -----]\n");
+    printf("To disable, change DEBUG variable in cipher.c from 1 to 0 and remake\n");
     printf("\ndecode=%i \nencode=%i \nversion=%i \nhelp=%i \nmmap=%i \npass=%i \n", deco, enco, vers, help, mmap, pass);
 
     if(pass==1){
-      printf("\ntemp_buf=%s\n",temp_buf);
+      printf("temp_buf=%s \npassArgNum=%i\n",temp_buf,passArgNum);
     } else {
-      printf("\ntemp_buf=<BLANK>\n");
+      printf("temp_buf=<BLANK> \npassArgNum=%i\n",passArgNum);
     }
     printf("argc=%i\n",argc);
   }
@@ -97,6 +115,14 @@ int main(int argc, char *argv[]){
     printf("Blowfish Cipher Tool - %s\n", version);
     return 0;
   } else if(argc>=3){
+    // Check for proper format of <infile> and <outfile>
+    if((strcmp(argv[passArgNum],argv[argc-2])==0) && passArgNum!=0){
+      if(DEBUG==1){
+        printf("pass=%s \nargc-2=%s \n",argv[passArgNum],argv[argc-2]);
+      }
+      fprintf(stderr,"Error: No outfile specified\n");
+      return 0;
+    }
     // Take <infile> and <outfile>
     infile_name=(char*)malloc(sizeof(char)*strlen(argv[argc-2]));
     outfile_name=(char*)malloc(sizeof(char)*strlen(argv[argc-1]));
@@ -115,6 +141,10 @@ int main(int argc, char *argv[]){
     if(stdin_infile!=1){
       if((fileExists(infile_name))!=1){
         fprintf(stderr,"Error: Input file does not exist\n");
+        return 0;
+      }
+      else if((isDirectory(infile_name))!=1){
+        fprintf(stderr,"Error: Input file is a directory\n");
         return 0;
       }
     }
