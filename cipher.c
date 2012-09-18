@@ -11,7 +11,7 @@ int main(int argc, char *argv[]){
 
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
-  char *version = "$Revision: 1.3 $";
+  char *version = "$Revision: 1.4 $";
   int len;
 
   /* define boolean ints for params */
