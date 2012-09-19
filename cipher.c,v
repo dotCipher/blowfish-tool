@@ -1,10 +1,15 @@
-head	1.12;
+head	1.13;
 access;
 symbols;
 locks
-	cjmoore:1.12; strict;
+	cjmoore:1.13; strict;
 comment	@ * @;
 
+
+1.13
+date	2012.09.19.18.22.13;	author cjmoore;	state Exp;
+branches;
+next	1.12;
 
 1.12
 date	2012.09.19.05.41.22;	author cjmoore;	state Exp;
@@ -72,9 +77,9 @@ desc
 @
 
 
-1.12
+1.13
 log
-@Completed same file error checking
+@Added more error checking with permissions and file i/o (unfinished)
 @
 text
 @#include <stdio.h>
@@ -84,6 +89,7 @@ text
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <errno.h>
 #include "blowfish.h"
 
 /* Handles checking if file exists
@@ -113,7 +119,17 @@ int isDirectory(char *path){
   }
 }
 
-/* Handles checking if two files are the same
+/* Handles checking the permissions of any
+ * given file.  
+ * SUCCESS CODE(S):
+ * 0 = 
+ */
+int chkPermissions(char *file){
+	
+}
+
+/* Handles checking if two files are the same.
+ * This method assumes the files exist.
  * (checks for symlinks and hardlinks)
  * SUCCESS CODE(S):
  * 0 = Success (NOT the same file) 
@@ -189,24 +205,30 @@ int isSameFiles(char *in_path, char *out_path){
  * 3 = Invalid execution
  * 4 = No <outfile> given
  * 5 = <infile> does not exist
- * 6 = <infile> is a directory
+ * 6 = <infile> OR <outfile> is directory
  * 7 = Same file error
+ * 8 = File i/o OR permission error
  */
 int main(int argc, char *argv[]){
   // 1=Enable Debug Mode
   // 0=Disable Debug Mode
   int DEBUG = 1;
+  errno = 0;
+  
+  /* Initialize from and to buffers to OS pagesize */
   //int PAGE_SIZE=getpagesize();
   //char from[PAGE_SIZE], to[PAGE_SIZE];
 
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   //char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.11 $";
+  char rcs_vers[18] = "$Revision: 1.12 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
   /* File names/descriptors/stats */
+  FILE *infile;
+  FILE *outfile;
   char *infile_name;
   char *outfile_name;
   int stdin_infile;
@@ -214,9 +236,9 @@ int main(int argc, char *argv[]){
   int sf_code;
   int len;
 
-  /* define boolean ints for params */
+  /* Define boolean ints for params */
   int deco, enco, vers, help, mmap, pass, opt, safe;
-  /* define a structure to hold the key */
+  /* Define a structure to hold the key */
   // BF_KEY key;
   
   /* Parse out version properly for display */
@@ -225,7 +247,7 @@ int main(int argc, char *argv[]){
   version = strtok(NULL," ");
   free(rcs_vers_cp);
   
-  /* initialize and check params */
+  /* Initialize and check params */
   len = 128;
   stdin_infile = 0; stdout_outfile = 0;
   deco = 0; enco = 0; vers = 0; help = 0; mmap = 0; pass = 0; safe = 0;
@@ -318,23 +340,62 @@ int main(int argc, char *argv[]){
       stdout_outfile=1;
     }
     
-    // Checks for if the infile exists or is directory
+    // ----- <infile> Error Checking -----
+    // (Only if <infile> is NOT set to STDIN)
     if(stdin_infile!=1){
       if((fileExists(infile_name))!=1){
+        // <infile> DOES NOT exist
         fprintf(stderr,"Error Code 5: <infile> does not exist\n");
         free(infile_name);
         free(outfile_name);
         return 5;
-      }
-      else if((isDirectory(infile_name))!=1){
+      } else if((isDirectory(infile_name))!=1){
+        // <infile> DOES exist AND is a directory
         fprintf(stderr,"Error Code 6: <infile> is a directory\n");
         free(infile_name);
         free(outfile_name);
         return 6;
+      } else {
+      	// <infile> DOES exist AND is NOT a directory
+      	// Check permissions and file type of <infile>
+      	errno=0;
+      	infile = fopen(infile_name,"r");
+      	if(errno != 0){
+      		perror("Error Code 8: On <infile>");
+      		free(infile_name);
+      		free(outfile_name);
+      		return 8;
+      	}
       }
     }
+    // Postconditions:
+    // <infile> DOES exist and IS NOT a directory
+    // OR <infile> is set to STDIN
+    // with no i/o or permission errors
+    
+    // ----- <outfile> Error Checking -----
+    // (Only if <outfile> is NOT set to STDOUT)
+    if(stdout_outfile!=1){
+    	if((fileExists(outfile_name))!=1){
+    		// <outfile> DOES NOT exist
+    		// Check permissions of creating <outfile>
+    	} else if((isDirectory(outfile_name))!=1){
+    		// <outfile> DOES exist AND is directory
+    		fprintf(stderr,"Error Code 6: <outfile> is a directory\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		return 6;
+    	} else {
+    		// <outfile> DOES exist AND is NOT a directory
+    		// Check permissions and file type of <outfile>
+    	}
+    }
+    // Postconditions:
+    // <outfile> IS NOT a directory
+    // OR <outfile> is set to STDOUT
     
     // Check if infile and outfile are the same
+    // (NOTE: Assumes both files exist)
     sf_code = isSameFiles(infile_name, outfile_name);
     if(sf_code==1){
     	// Paths are the same references
@@ -369,7 +430,19 @@ int main(int argc, char *argv[]){
     	// No error, continue on
     }
     
+    // Check if <infile> or <outfile> is a char/block special device
+    
     // Check if current user contains permissions for both files
+    
+    
+    
+    //	Preconditions: 
+    //	<infile> exists, it is NOT a directory, and if it is a 
+    //		symlink/hardlink, it points to a seperate file than 
+    //		<outfile>, else it is not a link but a regular file.
+    //	<outfile> may exist, and if it does exist and is a
+    //		symlink/hardlink, it points to a seperate file than
+    //		<infile>, else it is not a link but a regular file	 
     
     
     // DEBUGGING CODE //
@@ -446,6 +519,49 @@ int main(int argc, char *argv[]){
   }
   return 0;
 }
+@
+
+
+1.12
+log
+@Completed same file error checking
+@
+text
+@d8 1
+d38 11
+a48 1
+/* Handles checking if two files are the same
+d124 1
+a124 1
+ * 6 = <infile> is a directory
+d126 1
+d132 3
+d141 1
+a141 1
+  char rcs_vers[18] = "$Revision: 1.11 $";
+d146 2
+d155 1
+a155 1
+  /* define boolean ints for params */
+d157 1
+a157 1
+  /* define a structure to hold the key */
+d166 1
+a166 1
+  /* initialize and check params */
+d259 2
+a260 1
+    // Checks for if the infile exists or is directory
+d263 1
+d268 2
+a269 2
+      }
+      else if((isDirectory(infile_name))!=1){
+d274 11
+d287 25
+d314 1
+d349 2
+d354 10
 @
 
 
