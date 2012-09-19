@@ -1,10 +1,15 @@
-head	1.13;
+head	1.14;
 access;
 symbols;
 locks
-	cjmoore:1.13; strict;
+	cjmoore:1.14; strict;
 comment	@ * @;
 
+
+1.14
+date	2012.09.19.18.47.37;	author cjmoore;	state Exp;
+branches;
+next	1.13;
 
 1.13
 date	2012.09.19.18.22.13;	author cjmoore;	state Exp;
@@ -77,9 +82,9 @@ desc
 @
 
 
-1.13
+1.14
 log
-@Added more error checking with permissions and file i/o (unfinished)
+@More work on file i/o error checking
 @
 text
 @#include <stdio.h>
@@ -117,15 +122,6 @@ int isDirectory(char *path){
   } else {
     return 1;
   }
-}
-
-/* Handles checking the permissions of any
- * given file.  
- * SUCCESS CODE(S):
- * 0 = 
- */
-int chkPermissions(char *file){
-	
 }
 
 /* Handles checking if two files are the same.
@@ -222,7 +218,7 @@ int main(int argc, char *argv[]){
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   //char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.12 $";
+  char rcs_vers[18] = "$Revision: 1.13 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -379,6 +375,14 @@ int main(int argc, char *argv[]){
     	if((fileExists(outfile_name))!=1){
     		// <outfile> DOES NOT exist
     		// Check permissions of creating <outfile>
+    		errno=0
+    		outfile = fopen(outfile_name,"w");
+    		if((outfile==NULL) || (errno !=0)){
+    			perror("Error Code 8: On <outfile>");
+    			free(infile_name);
+    			free(outfile_name);
+    			return 8;
+    		}
     	} else if((isDirectory(outfile_name))!=1){
     		// <outfile> DOES exist AND is directory
     		fprintf(stderr,"Error Code 6: <outfile> is a directory\n");
@@ -519,6 +523,28 @@ int main(int argc, char *argv[]){
   }
   return 0;
 }
+@
+
+
+1.13
+log
+@Added more error checking with permissions and file i/o (unfinished)
+@
+text
+@a37 9
+/* Handles checking the permissions of any
+ * given file.  
+ * SUCCESS CODE(S):
+ * 0 = 
+ */
+int chkPermissions(char *file){
+	
+}
+
+d132 1
+a132 1
+  char rcs_vers[18] = "$Revision: 1.12 $";
+d289 8
 @
 
 

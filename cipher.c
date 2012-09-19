@@ -35,15 +35,6 @@ int isDirectory(char *path){
   }
 }
 
-/* Handles checking the permissions of any
- * given file.  
- * SUCCESS CODE(S):
- * 0 = 
- */
-int chkPermissions(char *file){
-	
-}
-
 /* Handles checking if two files are the same.
  * This method assumes the files exist.
  * (checks for symlinks and hardlinks)
@@ -138,7 +129,7 @@ int main(int argc, char *argv[]){
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   //char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.13 $";
+  char rcs_vers[18] = "$Revision: 1.14 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -295,6 +286,14 @@ int main(int argc, char *argv[]){
     	if((fileExists(outfile_name))!=1){
     		// <outfile> DOES NOT exist
     		// Check permissions of creating <outfile>
+    		errno=0
+    		outfile = fopen(outfile_name,"w");
+    		if((outfile==NULL) || (errno !=0)){
+    			perror("Error Code 8: On <outfile>");
+    			free(infile_name);
+    			free(outfile_name);
+    			return 8;
+    		}
     	} else if((isDirectory(outfile_name))!=1){
     		// <outfile> DOES exist AND is directory
     		fprintf(stderr,"Error Code 6: <outfile> is a directory\n");
