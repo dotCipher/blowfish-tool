@@ -1,10 +1,15 @@
-head	1.7;
+head	1.8;
 access;
 symbols;
 locks
-	cjmoore:1.7; strict;
+	cjmoore:1.8; strict;
 comment	@ * @;
 
+
+1.8
+date	2012.09.19.02.33.10;	author cjmoore;	state Exp;
+branches;
+next	1.7;
 
 1.7
 date	2012.09.18.19.27.21;	author cjmoore;	state Exp;
@@ -47,9 +52,9 @@ desc
 @
 
 
-1.7
+1.8
 log
-@Even more error checking
+@Added error checking for same files
 @
 text
 @#include <stdio.h>
@@ -76,20 +81,86 @@ int isDirectory(char *path){
   }
 }
 
+/* Handles checking if two files are the same
+ * (checks for symlinks and hardlinks)
+ * ERROR CODES:
+ * 
+ */
+int isSameFiles(char *in_path, char *out_path){
+	struct stat in_buffer;
+	struct stat out_buffer;
+	stat(in_path,in_buffer);
+	stat(out_path,out_buffer);
+	// Checks if the basic paths are the same
+	if(strcmp(in_path,out_path)==0){
+		// Checks DeviceID and Inode numbers for exact match
+		if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.rdev==out_buffer.rdev)){
+			return 1;
+		} else {
+			return 0;
+		}
+	} else {
+		// Check if either are symlinks
+		lstat(in_path,in_buffer);
+		lstat(out_path,out_buffer);
+		if(!(in_buffer.st_mode & S_IFLNK) && !(out_buffer.st_mode & S_IFLINK)){
+			// If both are not links then check to be SURE they are same file
+			//  (Aka Hardlinks to same file)
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_rdev)){
+				return 1;
+			} else {
+				// They must be pointing to two different files
+				// (Not Hardlinks)
+				return 0;
+			}
+		} else if((in_buffer.st_mode & S_IFLNK) && (out_buffer.st_mode & S_IFLNK)){
+			// Both input file & output file are symlinks
+			// Check if they point to the same file
+			stat(in_path,in_buffer);
+			stat(out_path,out_buffer);
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_rdev)){
+				return 1;
+			} else {
+				return 0;
+			}
+		} else if((in_buffer.st_mode & S_IFLNK) && !(out_buffer.st_mode & S_IFLNK)){
+			// Only the input file is a symlink
+			// Check if input points to output
+			stat(in_path,in_buffer);
+			stat(out_path,in_buffer);
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_rdev)){
+				return 1;
+			} else {
+				return 0;
+			}
+		} else {
+			// Only the output file is a symlink
+			// Check if output points to input
+			stat(in_path,in_buffer);
+			stat(out_path,out_buffer);
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_dev)){
+				return 1;
+			} else {
+				return 0;
+			}
+		}
+	}
+}
+
 int main(int argc, char *argv[]){
   // 1=Enable Debug Mode
   // 0=Disable Debug Mode
   int DEBUG = 1;
-
-  //char from[128], to[128];
+  int PAGE_SIZE=getpagesize();
+  //char from[PAGE_SIZE], to[PAGE_SIZE];
 
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   //char temp_buf_chk[16];
-  char *version = "$Revision: 1.6 $";
+  char *version = "$Revision: 1.7 $";
   int passArgNum = 0;
   
-  /* File names/descriptors/stats*/
+  /* File names/descriptors/stats */
   char *infile_name;
   char *outfile_name;
   int stdin_infile;
@@ -134,7 +205,7 @@ int main(int argc, char *argv[]){
       break;
     default:
       fprintf(stderr, "Usage: %s [OPTIONS] [-p PASSWORD] <infile> <outfile>\n", argv[0]);
-      exit(EXIT_FAILURE);
+      return 0;
     }
   }
   
@@ -181,7 +252,8 @@ int main(int argc, char *argv[]){
     infile_name=(char*)malloc(sizeof(char)*strlen(argv[argc-2]));
     outfile_name=(char*)malloc(sizeof(char)*strlen(argv[argc-1]));
     strcpy(outfile_name, argv[argc-1]);
-    strcpy(infile_name, argv[argc-2]);
+		strcpy(infile_name, argv[argc-2]);
+    // MAKE SURE TO FREE THIS
     
     // Check if stdout or stdin is used
     //  in replace of <infile> or <outfile>
@@ -192,16 +264,24 @@ int main(int argc, char *argv[]){
       stdout_outfile=1;
     }
     
+    // Checks for if the infile exists or is directory
     if(stdin_infile!=1){
       if((fileExists(infile_name))!=1){
         fprintf(stderr,"Error: Input file does not exist\n");
+        free(infile_name);
+        free(outfile_name);
         return 0;
       }
       else if((isDirectory(infile_name))!=1){
         fprintf(stderr,"Error: Input file is a directory\n");
+        free(infile_name);
+        free(outfile_name);
         return 0;
       }
     }
+    
+    // Checks for infile and outfile being the same
+    
     
     // DEBUGGING CODE //
     if(DEBUG==1){
@@ -260,7 +340,7 @@ int main(int argc, char *argv[]){
 
     /*
      * This is how you encrypt an input char* buffer "from", of length "len"
-     * onto output buffer "to", using key "key".  Jyst pass "iv" and "&n" as
+     * onto output buffer "to", using key "key".  Just pass "iv" and "&n" as
      * shown, and don't forget to actually tell the function to BF_ENCRYPT.
      */
     // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_ENCRYPT);
@@ -275,6 +355,38 @@ int main(int argc, char *argv[]){
   }
   return 0;
 }
+@
+
+
+1.7
+log
+@Even more error checking
+@
+text
+@d25 66
+d95 2
+a96 2
+
+  //char from[128], to[128];
+d101 1
+a101 1
+  char *version = "$Revision: 1.6 $";
+d104 1
+a104 1
+  /* File names/descriptors/stats*/
+d149 1
+a149 1
+      exit(EXIT_FAILURE);
+d196 2
+a197 1
+    strcpy(infile_name, argv[argc-2]);
+d208 1
+d212 2
+d218 2
+d224 3
+d284 1
+a284 1
+     * onto output buffer "to", using key "key".  Jyst pass "iv" and "&n" as
 @
 
 

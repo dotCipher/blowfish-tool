@@ -22,20 +22,86 @@ int isDirectory(char *path){
   }
 }
 
+/* Handles checking if two files are the same
+ * (checks for symlinks and hardlinks)
+ * ERROR CODES:
+ * 
+ */
+int isSameFiles(char *in_path, char *out_path){
+	struct stat in_buffer;
+	struct stat out_buffer;
+	stat(in_path,in_buffer);
+	stat(out_path,out_buffer);
+	// Checks if the basic paths are the same
+	if(strcmp(in_path,out_path)==0){
+		// Checks DeviceID and Inode numbers for exact match
+		if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.rdev==out_buffer.rdev)){
+			return 1;
+		} else {
+			return 0;
+		}
+	} else {
+		// Check if either are symlinks
+		lstat(in_path,in_buffer);
+		lstat(out_path,out_buffer);
+		if(!(in_buffer.st_mode & S_IFLNK) && !(out_buffer.st_mode & S_IFLINK)){
+			// If both are not links then check to be SURE they are same file
+			//  (Aka Hardlinks to same file)
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_rdev)){
+				return 1;
+			} else {
+				// They must be pointing to two different files
+				// (Not Hardlinks)
+				return 0;
+			}
+		} else if((in_buffer.st_mode & S_IFLNK) && (out_buffer.st_mode & S_IFLNK)){
+			// Both input file & output file are symlinks
+			// Check if they point to the same file
+			stat(in_path,in_buffer);
+			stat(out_path,out_buffer);
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_rdev)){
+				return 1;
+			} else {
+				return 0;
+			}
+		} else if((in_buffer.st_mode & S_IFLNK) && !(out_buffer.st_mode & S_IFLNK)){
+			// Only the input file is a symlink
+			// Check if input points to output
+			stat(in_path,in_buffer);
+			stat(out_path,in_buffer);
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_rdev)){
+				return 1;
+			} else {
+				return 0;
+			}
+		} else {
+			// Only the output file is a symlink
+			// Check if output points to input
+			stat(in_path,in_buffer);
+			stat(out_path,out_buffer);
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_dev)){
+				return 1;
+			} else {
+				return 0;
+			}
+		}
+	}
+}
+
 int main(int argc, char *argv[]){
   // 1=Enable Debug Mode
   // 0=Disable Debug Mode
   int DEBUG = 1;
-
-  //char from[128], to[128];
+  int PAGE_SIZE=getpagesize();
+  //char from[PAGE_SIZE], to[PAGE_SIZE];
 
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   //char temp_buf_chk[16];
-  char *version = "$Revision: 1.7 $";
+  char *version = "$Revision: 1.8 $";
   int passArgNum = 0;
   
-  /* File names/descriptors/stats*/
+  /* File names/descriptors/stats */
   char *infile_name;
   char *outfile_name;
   int stdin_infile;
@@ -80,7 +146,7 @@ int main(int argc, char *argv[]){
       break;
     default:
       fprintf(stderr, "Usage: %s [OPTIONS] [-p PASSWORD] <infile> <outfile>\n", argv[0]);
-      exit(EXIT_FAILURE);
+      return 0;
     }
   }
   
@@ -127,7 +193,8 @@ int main(int argc, char *argv[]){
     infile_name=(char*)malloc(sizeof(char)*strlen(argv[argc-2]));
     outfile_name=(char*)malloc(sizeof(char)*strlen(argv[argc-1]));
     strcpy(outfile_name, argv[argc-1]);
-    strcpy(infile_name, argv[argc-2]);
+		strcpy(infile_name, argv[argc-2]);
+    // MAKE SURE TO FREE THIS
     
     // Check if stdout or stdin is used
     //  in replace of <infile> or <outfile>
@@ -138,16 +205,24 @@ int main(int argc, char *argv[]){
       stdout_outfile=1;
     }
     
+    // Checks for if the infile exists or is directory
     if(stdin_infile!=1){
       if((fileExists(infile_name))!=1){
         fprintf(stderr,"Error: Input file does not exist\n");
+        free(infile_name);
+        free(outfile_name);
         return 0;
       }
       else if((isDirectory(infile_name))!=1){
         fprintf(stderr,"Error: Input file is a directory\n");
+        free(infile_name);
+        free(outfile_name);
         return 0;
       }
     }
+    
+    // Checks for infile and outfile being the same
+    
     
     // DEBUGGING CODE //
     if(DEBUG==1){
@@ -206,7 +281,7 @@ int main(int argc, char *argv[]){
 
     /*
      * This is how you encrypt an input char* buffer "from", of length "len"
-     * onto output buffer "to", using key "key".  Jyst pass "iv" and "&n" as
+     * onto output buffer "to", using key "key".  Just pass "iv" and "&n" as
      * shown, and don't forget to actually tell the function to BF_ENCRYPT.
      */
     // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_ENCRYPT);
