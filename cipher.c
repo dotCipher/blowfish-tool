@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -101,8 +101,8 @@ int isSameFiles(char *in_path, char *out_path){
 	}
 }
 
-/* [-------- Main Method --------] */
-/* SUCCESS CODE(S):
+/* [-------- Main Method --------]
+ * SUCCESS CODE(S):
  * 0 = Encrypt OR Decrypt Successful
  * 1 = Help menu displayed for user
  * 2 = Version displayed for user
@@ -122,7 +122,8 @@ int main(int argc, char *argv[]){
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   //char temp_buf_chk[16];
-  char *version = "$Revision: 1.9 $";
+  char rcs_vers[18] = "$Revision: 1.11 $";
+  char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
   /* File names/descriptors/stats */
@@ -136,7 +137,12 @@ int main(int argc, char *argv[]){
   int deco, enco, vers, help, mmap, pass, opt, safe;
   /* define a structure to hold the key */
   // BF_KEY key;
-
+  
+  /* Parse out version properly for display */
+  rcs_vers_cp = strdup(rcs_vers);
+  version = strtok(rcs_vers_cp," ");
+  version = strtok(NULL," ");
+  
   /* initialize and check params */
   len = 128;
   stdin_infile = 0; stdout_outfile = 0;
@@ -202,7 +208,7 @@ int main(int argc, char *argv[]){
     printf("   -s        :  Safe Mode (prompt for password twice\n");
     return 1;
   } else if(vers==1){
-    printf("Blowfish Cipher Tool - %s\n", version);
+    printf("Blowfish Cipher Tool - v%s\n", version);
     return 2;
   } else if(argc>=3){
     // Check for proper format of <infile> and <outfile>
