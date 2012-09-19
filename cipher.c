@@ -107,10 +107,11 @@ int isSameFiles(char *in_path, char *out_path){
  * 1 = Help menu displayed for user
  * 2 = Version displayed for user
  * ERROR CODE(S):
- * 3 = Invalid command-line args given
+ * 3 = Invalid execution
  * 4 = No <outfile> given
  * 5 = <infile> does not exist
  * 6 = <infile> is a directory
+ * 7 = Same file error
  */
 int main(int argc, char *argv[]){
   // 1=Enable Debug Mode
@@ -122,7 +123,7 @@ int main(int argc, char *argv[]){
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   //char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.11 $";
+  char rcs_vers[18] = "$Revision: 1.12 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -131,6 +132,7 @@ int main(int argc, char *argv[]){
   char *outfile_name;
   int stdin_infile;
   int stdout_outfile;
+  int sf_code;
   int len;
 
   /* define boolean ints for params */
@@ -142,6 +144,7 @@ int main(int argc, char *argv[]){
   rcs_vers_cp = strdup(rcs_vers);
   version = strtok(rcs_vers_cp," ");
   version = strtok(NULL," ");
+  free(rcs_vers_cp);
   
   /* initialize and check params */
   len = 128;
@@ -175,7 +178,8 @@ int main(int argc, char *argv[]){
       pass = 1;
       break;
     default:
-      fprintf(stderr, "Usage: %s [OPTIONS] [-p PASSWORD] <infile> <outfile>\n", argv[0]);
+    	fprintf(stderr,"Error Code 3: Invalid execution\n");
+      fprintf(stderr,"Usage: %s [OPTIONS] [-p PASSWORD] <infile> <outfile>\n", argv[0]);
       return 3;
     }
   }
@@ -216,7 +220,7 @@ int main(int argc, char *argv[]){
       if(DEBUG==1){
         printf("pass=%s \nargc-2=%s \n",argv[passArgNum],argv[argc-2]);
       }
-      fprintf(stderr,"Error: No outfile specified\n");
+      fprintf(stderr,"Error Code 4: No <outfile> specified\n");
       return 4;
     }
     // Take <infile> and <outfile>
@@ -224,7 +228,7 @@ int main(int argc, char *argv[]){
     outfile_name=(char*)malloc(strlen(argv[argc-1]));
     strcpy(outfile_name, argv[argc-1]);
 		strcpy(infile_name, argv[argc-2]);
-    // MAKE SURE TO FREE THIS
+    // MAKE SURE TO FREE THESE
     
     // Check if stdout or stdin is used
     //  in replace of <infile> or <outfile>
@@ -238,20 +242,55 @@ int main(int argc, char *argv[]){
     // Checks for if the infile exists or is directory
     if(stdin_infile!=1){
       if((fileExists(infile_name))!=1){
-        fprintf(stderr,"Error: Input file does not exist\n");
+        fprintf(stderr,"Error Code 5: <infile> does not exist\n");
         free(infile_name);
         free(outfile_name);
         return 5;
       }
       else if((isDirectory(infile_name))!=1){
-        fprintf(stderr,"Error: Input file is a directory\n");
+        fprintf(stderr,"Error Code 6: <infile> is a directory\n");
         free(infile_name);
         free(outfile_name);
         return 6;
       }
     }
     
-    // Checks for infile and outfile being the same
+    // Check if infile and outfile are the same
+    sf_code = isSameFiles(infile_name, outfile_name);
+    if(sf_code==1){
+    	// Paths are the same references
+    	fprintf(stderr,"Error Code 7: <infile> and <outfile> are the same path\n");
+    	free(infile_name);
+    	free(outfile_name);
+    	return 7;
+    } else if(sf_code==2){
+    	// Hardlinks to same file
+    	fprintf(stderr,"Error Code 7: <infile> and <outfile> are hardlinks to same file\n");
+    	free(infile_name);
+    	free(outfile_name);
+    	return 7;
+    } else if(sf_code==3){
+    	// In/Out symlinks point to same file
+    	fprintf(stderr,"Error Code 7: <infile> and <outfile> are symlinks to same file\n");
+    	free(infile_name);
+    	free(outfile_name);
+    	return 7;
+    } else if(sf_code==4){
+    	// Input symlink points to outfile
+    	fprintf(stderr,"Error Code 7: <infile> symlink points to <outfile>\n");
+    	free(infile_name);
+    	free(outfile_name);
+    	return 7;
+    } else if(sf_code==5){
+    	// Output symlink points to infile
+    	fprintf(stderr,"Error Code 7: <outfile> symlink points to <infile>\n");
+    	free(infile_name);
+    	free(outfile_name);
+    } else{
+    	// No error, continue on
+    }
+    
+    // Check if current user contains permissions for both files
     
     
     // DEBUGGING CODE //
@@ -294,9 +333,10 @@ int main(int argc, char *argv[]){
       }
     // Both Encrypt/Decrypt OR Neither Encrypt/Decrypt
     } else {
-      fprintf(stderr, "Error: Must use EITHER Encrypt (-e) OR Decrypt (-d)\n");
-      fprintf(stderr, "       i.e.  %s [-e|-d] <infile> <outfile>\n",argv[0]);
-      return 0;
+      fprintf(stderr,"Error Code 3: Invalid execution\n");
+      fprintf(stderr,"Must use EITHER Encrypt (-e) OR Decrypt (-d)\n");
+      fprintf(stderr,"       i.e.  %s [-e|-d] <infile> <outfile>\n",argv[0]);
+      return 3;
     }	
 
     /* don't worry about these two: just define/use them */
@@ -320,9 +360,10 @@ int main(int argc, char *argv[]){
     // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_DECRYPT);
   
   } else{
-    fprintf(stderr,"Error: Must include <infile> and <outfile> parameters\n");
+ 		fprintf(stderr,"Error Code 3: Invalid execution\n");
+    fprintf(stderr,"Must include <infile> and <outfile> parameters\n");
     fprintf(stderr,"       i.e.  %s [-e|-d] <infile> <outfile>\n", argv[0]);
-    return 0;
+    return 3;
   }
   return 0;
 }
