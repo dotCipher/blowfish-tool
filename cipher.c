@@ -7,11 +7,23 @@
 #include <unistd.h>
 #include "blowfish.h"
 
+/* Handles checking if file exists
+ * SUCCESS CODE(S):
+ * 0 = Success (File DOES NOT exist)
+ * ERROR CODE(S):
+ * 1 = File does exist
+ */
 int fileExists(char *fName){
   struct stat buffer;
   return (stat(fName, &buffer)==0);
 }
 
+/* Handles checking if path is directory
+ * SUCCESS CODE(S):
+ * 0 = Success (Path is NOT a directory)
+ * ERROR CODE(S):
+ * 1 = Path is a directory
+ */
 int isDirectory(char *path){
   struct stat buffer;
   stat(path,&buffer);
@@ -24,31 +36,32 @@ int isDirectory(char *path){
 
 /* Handles checking if two files are the same
  * (checks for symlinks and hardlinks)
- * ERROR CODES:
- * 
+ * SUCCESS CODE(S):
+ * 0 = Success (NOT the same file) 
+ * ERROR CODE(S):
+ * 1 = Paths are the same (same referencing)
+ * 2 = Hardlinks to same file
+ * 3 = In/Out symlinks point to same file
+ * 4 = Input symlink points to outfile
+ * 5 = Output symlink points to infile
  */
 int isSameFiles(char *in_path, char *out_path){
 	struct stat in_buffer;
 	struct stat out_buffer;
-	stat(in_path,in_buffer);
-	stat(out_path,out_buffer);
+	stat(in_path,&in_buffer);
+	stat(out_path,&out_buffer);
 	// Checks if the basic paths are the same
 	if(strcmp(in_path,out_path)==0){
-		// Checks DeviceID and Inode numbers for exact match
-		if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.rdev==out_buffer.rdev)){
-			return 1;
-		} else {
-			return 0;
-		}
+		return 1;
 	} else {
 		// Check if either are symlinks
-		lstat(in_path,in_buffer);
-		lstat(out_path,out_buffer);
-		if(!(in_buffer.st_mode & S_IFLNK) && !(out_buffer.st_mode & S_IFLINK)){
+		lstat(in_path,&in_buffer);
+		lstat(out_path,&out_buffer);
+		if(!(in_buffer.st_mode & S_IFLNK) && !(out_buffer.st_mode & S_IFLNK)){
 			// If both are not links then check to be SURE they are same file
 			//  (Aka Hardlinks to same file)
-			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_rdev)){
-				return 1;
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+				return 2;
 			} else {
 				// They must be pointing to two different files
 				// (Not Hardlinks)
@@ -57,30 +70,30 @@ int isSameFiles(char *in_path, char *out_path){
 		} else if((in_buffer.st_mode & S_IFLNK) && (out_buffer.st_mode & S_IFLNK)){
 			// Both input file & output file are symlinks
 			// Check if they point to the same file
-			stat(in_path,in_buffer);
-			stat(out_path,out_buffer);
-			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_rdev)){
-				return 1;
+			stat(in_path,&in_buffer);
+			stat(out_path,&out_buffer);
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+				return 3;
 			} else {
 				return 0;
 			}
 		} else if((in_buffer.st_mode & S_IFLNK) && !(out_buffer.st_mode & S_IFLNK)){
 			// Only the input file is a symlink
 			// Check if input points to output
-			stat(in_path,in_buffer);
-			stat(out_path,in_buffer);
-			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_rdev)){
-				return 1;
+			stat(in_path,&in_buffer);
+			stat(out_path,&in_buffer);
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+				return 4;
 			} else {
 				return 0;
 			}
 		} else {
 			// Only the output file is a symlink
 			// Check if output points to input
-			stat(in_path,in_buffer);
-			stat(out_path,out_buffer);
-			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_rdev==out_buffer.st_dev)){
-				return 1;
+			stat(in_path,&in_buffer);
+			stat(out_path,&out_buffer);
+			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+				return 5;
 			} else {
 				return 0;
 			}
@@ -88,17 +101,28 @@ int isSameFiles(char *in_path, char *out_path){
 	}
 }
 
+/* [-------- Main Method --------] */
+/* SUCCESS CODE(S):
+ * 0 = Encrypt OR Decrypt Successful
+ * 1 = Help menu displayed for user
+ * 2 = Version displayed for user
+ * ERROR CODE(S):
+ * 3 = Invalid command-line args given
+ * 4 = No <outfile> given
+ * 5 = <infile> does not exist
+ * 6 = <infile> is a directory
+ */
 int main(int argc, char *argv[]){
   // 1=Enable Debug Mode
   // 0=Disable Debug Mode
   int DEBUG = 1;
-  int PAGE_SIZE=getpagesize();
+  //int PAGE_SIZE=getpagesize();
   //char from[PAGE_SIZE], to[PAGE_SIZE];
 
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   //char temp_buf_chk[16];
-  char *version = "$Revision: 1.8 $";
+  char *version = "$Revision: 1.9 $";
   int passArgNum = 0;
   
   /* File names/descriptors/stats */
@@ -146,7 +170,7 @@ int main(int argc, char *argv[]){
       break;
     default:
       fprintf(stderr, "Usage: %s [OPTIONS] [-p PASSWORD] <infile> <outfile>\n", argv[0]);
-      return 0;
+      return 3;
     }
   }
   
@@ -176,10 +200,10 @@ int main(int argc, char *argv[]){
     printf("   -h        :  Show help screen (you are looking at it) \n");
     printf("   -m        :  Enable memory mapping - mmap() \n");
     printf("   -s        :  Safe Mode (prompt for password twice\n");
-    return 0;
+    return 1;
   } else if(vers==1){
     printf("Blowfish Cipher Tool - %s\n", version);
-    return 0;
+    return 2;
   } else if(argc>=3){
     // Check for proper format of <infile> and <outfile>
     if((strcmp(argv[passArgNum],argv[argc-2])==0) && passArgNum!=0){
@@ -187,11 +211,11 @@ int main(int argc, char *argv[]){
         printf("pass=%s \nargc-2=%s \n",argv[passArgNum],argv[argc-2]);
       }
       fprintf(stderr,"Error: No outfile specified\n");
-      return 0;
+      return 4;
     }
     // Take <infile> and <outfile>
-    infile_name=(char*)malloc(sizeof(char)*strlen(argv[argc-2]));
-    outfile_name=(char*)malloc(sizeof(char)*strlen(argv[argc-1]));
+    infile_name=(char*)malloc(strlen(argv[argc-2]));
+    outfile_name=(char*)malloc(strlen(argv[argc-1]));
     strcpy(outfile_name, argv[argc-1]);
 		strcpy(infile_name, argv[argc-2]);
     // MAKE SURE TO FREE THIS
@@ -211,13 +235,13 @@ int main(int argc, char *argv[]){
         fprintf(stderr,"Error: Input file does not exist\n");
         free(infile_name);
         free(outfile_name);
-        return 0;
+        return 5;
       }
       else if((isDirectory(infile_name))!=1){
         fprintf(stderr,"Error: Input file is a directory\n");
         free(infile_name);
         free(outfile_name);
-        return 0;
+        return 6;
       }
     }
     
