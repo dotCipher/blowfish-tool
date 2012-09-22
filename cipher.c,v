@@ -1,10 +1,15 @@
-head	1.14;
+head	1.15;
 access;
 symbols;
 locks
-	cjmoore:1.14; strict;
+	cjmoore:1.15; strict;
 comment	@ * @;
 
+
+1.15
+date	2012.09.22.23.45.23;	author cjmoore;	state Exp;
+branches;
+next	1.14;
 
 1.14
 date	2012.09.19.18.47.37;	author cjmoore;	state Exp;
@@ -82,9 +87,9 @@ desc
 @
 
 
-1.14
+1.15
 log
-@More work on file i/o error checking
+@Finished all file i/o checking
 @
 text
 @#include <stdio.h>
@@ -115,13 +120,54 @@ int fileExists(char *fName){
  * 1 = Path is a directory
  */
 int isDirectory(char *path){
-  struct stat buffer;
+  struct stat buf;
+  buf = malloc(sizeof(struct stat));
   stat(path,&buffer);
   if(buffer.st_mode & S_IFDIR){
+  	free(buf);
     return 0;
   } else {
+  	free(buf);
     return 1;
   }
+}
+
+/* Handles checking if the given path of a file
+ * is pointing to a regular file.
+ * (NOTE: Assumes file path exists and is
+ * neither a directory or symlink)
+ * SUCCESS CODE(S):
+ * 0 = Success (Path points to regular file)
+ * ERROR CODE(S):
+ * 1 = Path is a character device
+ * 2 = Path is a block device
+ * 3 = Path is a named pipe
+ * 4 = Path is a socket
+ * 5 = Unknown (symlink or directory)
+ */
+int isRegularFile(char *path){
+	struct stat buf;
+	buf = malloc(sizeof(struct stat));
+	stat(path,&buf);
+	if(buf.st_mode & S_ISREG){
+		free(buf);
+		return 0;
+	} else if(buf.st_mode & S_ISCHR){
+		free(buf);
+		return 1;
+	} else if(buf.st_mode & S_ISBLK){
+		free(buf);
+		return 2;
+	} else if(buf.st_mode & S_ISFIFO){
+		free(buf);
+		return 3;
+	} else if(buf.st_mode & S_ISSOCK){
+		free(buf);
+		return 4;
+	} else {
+		free(buf);
+		return 5;
+	}
 }
 
 /* Handles checking if two files are the same.
@@ -139,10 +185,13 @@ int isDirectory(char *path){
 int isSameFiles(char *in_path, char *out_path){
 	struct stat in_buffer;
 	struct stat out_buffer;
+	in_buffer = malloc(sizeof(struct stat));
+	out_buffer = malloc(sizeof(struct stat));
 	stat(in_path,&in_buffer);
 	stat(out_path,&out_buffer);
 	// Checks if the basic paths are the same
 	if(strcmp(in_path,out_path)==0){
+		free(in_buffer); free(out_buffer);
 		return 1;
 	} else {
 		// Check if either are symlinks
@@ -152,10 +201,12 @@ int isSameFiles(char *in_path, char *out_path){
 			// If both are not links then check to be SURE they are same file
 			//  (Aka Hardlinks to same file)
 			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+				free(in_buffer); free(out_buffer);
 				return 2;
 			} else {
 				// They must be pointing to two different files
 				// (Not Hardlinks)
+				free(in_buffer); free(out_buffer);
 				return 0;
 			}
 		} else if((in_buffer.st_mode & S_IFLNK) && (out_buffer.st_mode & S_IFLNK)){
@@ -164,8 +215,10 @@ int isSameFiles(char *in_path, char *out_path){
 			stat(in_path,&in_buffer);
 			stat(out_path,&out_buffer);
 			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+				free(in_buffer); free(out_buffer);
 				return 3;
 			} else {
+				free(in_buffer); free(out_buffer);
 				return 0;
 			}
 		} else if((in_buffer.st_mode & S_IFLNK) && !(out_buffer.st_mode & S_IFLNK)){
@@ -174,8 +227,10 @@ int isSameFiles(char *in_path, char *out_path){
 			stat(in_path,&in_buffer);
 			stat(out_path,&in_buffer);
 			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+				free(in_buffer); free(out_buffer);
 				return 4;
 			} else {
+				free(in_buffer); free(out_buffer);
 				return 0;
 			}
 		} else {
@@ -184,8 +239,10 @@ int isSameFiles(char *in_path, char *out_path){
 			stat(in_path,&in_buffer);
 			stat(out_path,&out_buffer);
 			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+				free(in_buffer); free(out_buffer);
 				return 5;
 			} else {
+				free(in_buffer); free(out_buffer);
 				return 0;
 			}
 		}
@@ -218,7 +275,7 @@ int main(int argc, char *argv[]){
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   //char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.13 $";
+  char rcs_vers[18] = "$Revision: 1.14 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -306,7 +363,7 @@ int main(int argc, char *argv[]){
     printf("   -v        :  Print out version number \n");
     printf("   -h        :  Show help screen (you are looking at it) \n");
     printf("   -m        :  Enable memory mapping - mmap() \n");
-    printf("   -s        :  Safe Mode (prompt for password twice\n");
+    printf("   -s        :  Safe Mode (prompt for password twice)\n");
     return 1;
   } else if(vers==1){
     printf("Blowfish Cipher Tool - v%s\n", version);
@@ -325,7 +382,7 @@ int main(int argc, char *argv[]){
     outfile_name=(char*)malloc(strlen(argv[argc-1]));
     strcpy(outfile_name, argv[argc-1]);
 		strcpy(infile_name, argv[argc-2]);
-    // MAKE SURE TO FREE THESE
+		// FREE INFILE_NAME AND OUTFILE_NAME AT ALL RETURNS
     
     // Check if stdout or stdin is used
     //  in replace of <infile> or <outfile>
@@ -392,14 +449,22 @@ int main(int argc, char *argv[]){
     	} else {
     		// <outfile> DOES exist AND is NOT a directory
     		// Check permissions and file type of <outfile>
+    		fprintf(stderr, "Warning: <outfile> exists, overwritting...\n");
+    		errno=0;
+    		outfile = fopen(outfile_name, "w");
+    		if(errno != 0){
+    			perror("Error Code 8: On <outfile>");
+    			free(infile_name);
+    			free(outfile_name);
+    			return 8;
+    		}
     	}
     }
     // Postconditions:
-    // <outfile> IS NOT a directory
+    // <outfile> IS NOT a directory AND exists (either made or overwrote)
     // OR <outfile> is set to STDOUT
     
     // Check if infile and outfile are the same
-    // (NOTE: Assumes both files exist)
     sf_code = isSameFiles(infile_name, outfile_name);
     if(sf_code==1){
     	// Paths are the same references
@@ -430,23 +495,89 @@ int main(int argc, char *argv[]){
     	fprintf(stderr,"Error Code 7: <outfile> symlink points to <infile>\n");
     	free(infile_name);
     	free(outfile_name);
+    	return 7;
     } else{
     	// No error, continue on
     }
     
     // Check if <infile> or <outfile> is a char/block special device
-    
-    // Check if current user contains permissions for both files
-    
-    
-    
-    //	Preconditions: 
+    switch(isRegularFile(infile_name){
+    	case 0:
+    		// Regular File
+    		break;
+    	case 1:
+    		// Character Device
+    		fprintf(stderr,"Error Code 7: <infile> is a character device\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		return 7;
+    	case 2:
+    		// Block Device
+    		fprintf(stderr,"Error Code 7: <infile> is a block device\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		return 7;
+    	case 3:
+    		// FIFO - Named Pipe
+    		fprintf(stderr,"Error Code 7: <infile> is a named pipe\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		return 7;
+    	case 4:
+    		// Socket
+    		fprintf(stderr,"Error Code 7: <infile> is a socket\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		return 7;
+    	default:
+    		// Other (symlink or directory, unreachable with preconditions)
+    		fprintf(stderr,"Error Code 7: Unknown file <infile>\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		return 7;
+    }
+    switch(isRegularFile(outfile_name)){
+    	case 0:
+    		// Regular File
+    		break;
+    	case 1:
+    		// Character Device
+    		fprintf(stderr,"Error Code 7: <outfile> is a character device\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		return 7;
+    	case 2:
+    		// Block Device
+    		fprintf(stderr,"Error Code 7: <outfile> is a block device\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		return 7;
+    	case 3:
+    		// FIFO - Named Pipe
+    		fprintf(stderr,"Error Code 7: <outfile> is a named pipe\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		return 7;
+    	case 4:
+    		// Socket
+    		fprintf(stderr,"Error Code 7: <outfile> is a socket\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		return 7;
+    	default:
+    		// Other (symlink or directory, unreachable with preconditions)
+    		fprintf(stderr,"Error Code 7: Unknown file <outfile>\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		return 7;
+    }
+    //	Post-conditions: 
     //	<infile> exists, it is NOT a directory, and if it is a 
-    //		symlink/hardlink, it points to a seperate file than 
-    //		<outfile>, else it is not a link but a regular file.
+    //		symlink/hardlink, it points to a seperate regular file
+    //		than <outfile>, else it is not a link but a regular file.
     //	<outfile> may exist, and if it does exist and is a
-    //		symlink/hardlink, it points to a seperate file than
-    //		<infile>, else it is not a link but a regular file	 
+    //		symlink/hardlink, it points to a seperate regular file
+    //		than <infile>, else it is not a link but a regular file.
     
     
     // DEBUGGING CODE //
@@ -514,7 +645,8 @@ int main(int argc, char *argv[]){
 
     /* Decrypting is the same: just pass BF_DECRYPT instead */
     // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_DECRYPT);
-  
+  	free(infile_name);
+  	free(outfile_name);
   } else{
  		fprintf(stderr,"Error Code 3: Invalid execution\n");
     fprintf(stderr,"Must include <infile> and <outfile> parameters\n");
@@ -523,6 +655,65 @@ int main(int argc, char *argv[]){
   }
   return 0;
 }
+@
+
+
+1.14
+log
+@More work on file i/o error checking
+@
+text
+@d29 2
+a30 1
+  struct stat buffer;
+d33 1
+d36 1
+d41 38
+d94 2
+d100 1
+d110 1
+d115 1
+d124 1
+d127 1
+d136 1
+d139 1
+d148 1
+d151 1
+d184 1
+a184 1
+  char rcs_vers[18] = "$Revision: 1.13 $";
+d272 1
+a272 1
+    printf("   -s        :  Safe Mode (prompt for password twice\n");
+d291 1
+a291 1
+    // MAKE SURE TO FREE THESE
+d358 9
+d370 1
+a370 1
+    // <outfile> IS NOT a directory
+a373 1
+    // (NOTE: Assumes both files exist)
+d404 1
+d410 71
+a480 6
+    
+    // Check if current user contains permissions for both files
+    
+    
+    
+    //	Preconditions: 
+d482 2
+a483 2
+    //		symlink/hardlink, it points to a seperate file than 
+    //		<outfile>, else it is not a link but a regular file.
+d485 2
+a486 2
+    //		symlink/hardlink, it points to a seperate file than
+    //		<infile>, else it is not a link but a regular file	 
+d554 2
+a555 1
+  
 @
 
 
