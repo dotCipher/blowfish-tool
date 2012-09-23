@@ -15,8 +15,8 @@
  * 1 = File does exist
  */
 int fileExists(char *fName){
-  struct stat buffer;
-  return (stat(fName, &buffer)==0);
+  struct stat buf;
+  return (stat(fName, &buf)==0);
 }
 
 /* Handles checking if path is directory
@@ -24,12 +24,17 @@ int fileExists(char *fName){
  * 0 = Success (Path is NOT a directory)
  * ERROR CODE(S):
  * 1 = Path is a directory
+ * 2 = Out of memory
  */
 int isDirectory(char *path){
-  struct stat buf;
-  buf = malloc(sizeof(struct stat));
-  stat(path,&buffer);
-  if(buffer.st_mode & S_IFDIR){
+  struct stat *buf;
+  buf = (struct stat*)malloc(sizeof(struct stat));
+  if(buf==NULL){
+  	free(buf);
+  	return 2;
+  }
+  stat(path,buf);
+  if(buf->st_mode & S_IFDIR){
   	free(buf);
     return 0;
   } else {
@@ -52,22 +57,22 @@ int isDirectory(char *path){
  * 5 = Unknown (symlink or directory)
  */
 int isRegularFile(char *path){
-	struct stat buf;
-	buf = malloc(sizeof(struct stat));
-	stat(path,&buf);
-	if(buf.st_mode & S_ISREG){
+	struct stat *buf;
+	buf = (struct stat*)malloc(sizeof(struct stat));
+	stat(path,buf);
+	if(buf->st_mode & S_IFREG){
 		free(buf);
 		return 0;
-	} else if(buf.st_mode & S_ISCHR){
+	} else if(buf->st_mode & S_IFCHR){
 		free(buf);
 		return 1;
-	} else if(buf.st_mode & S_ISBLK){
+	} else if(buf->st_mode & S_IFBLK){
 		free(buf);
 		return 2;
-	} else if(buf.st_mode & S_ISFIFO){
+	} else if(buf->st_mode & S_IFIFO){
 		free(buf);
 		return 3;
-	} else if(buf.st_mode & S_ISSOCK){
+	} else if(buf->st_mode & S_IFSOCK){
 		free(buf);
 		return 4;
 	} else {
@@ -89,24 +94,26 @@ int isRegularFile(char *path){
  * 5 = Output symlink points to infile
  */
 int isSameFiles(char *in_path, char *out_path){
-	struct stat in_buffer;
-	struct stat out_buffer;
-	in_buffer = malloc(sizeof(struct stat));
-	out_buffer = malloc(sizeof(struct stat));
-	stat(in_path,&in_buffer);
-	stat(out_path,&out_buffer);
+	struct stat *in_buffer;
+	struct stat *out_buffer;
+	in_buffer = (struct stat*)malloc(sizeof(struct stat));
+	out_buffer = (struct stat*)malloc(sizeof(struct stat));
+	stat(in_path,in_buffer);
+	stat(out_path,out_buffer);
 	// Checks if the basic paths are the same
 	if(strcmp(in_path,out_path)==0){
 		free(in_buffer); free(out_buffer);
 		return 1;
 	} else {
 		// Check if either are symlinks
-		lstat(in_path,&in_buffer);
-		lstat(out_path,&out_buffer);
-		if(!(in_buffer.st_mode & S_IFLNK) && !(out_buffer.st_mode & S_IFLNK)){
+		lstat(in_path,in_buffer);
+		lstat(out_path,out_buffer);
+		if(!(in_buffer->st_mode & S_IFLNK) 
+		&& !(out_buffer->st_mode & S_IFLNK)){
 			// If both are not links then check to be SURE they are same file
 			//  (Aka Hardlinks to same file)
-			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+			if((in_buffer->st_dev==out_buffer->st_dev) 
+			&& (in_buffer->st_ino==out_buffer->st_ino)){
 				free(in_buffer); free(out_buffer);
 				return 2;
 			} else {
@@ -115,24 +122,28 @@ int isSameFiles(char *in_path, char *out_path){
 				free(in_buffer); free(out_buffer);
 				return 0;
 			}
-		} else if((in_buffer.st_mode & S_IFLNK) && (out_buffer.st_mode & S_IFLNK)){
+		} else if((in_buffer->st_mode & S_IFLNK) 
+		&& (out_buffer->st_mode & S_IFLNK)){
 			// Both input file & output file are symlinks
 			// Check if they point to the same file
-			stat(in_path,&in_buffer);
-			stat(out_path,&out_buffer);
-			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+			stat(in_path,in_buffer);
+			stat(out_path,out_buffer);
+			if((in_buffer->st_dev==out_buffer->st_dev) 
+			&& (in_buffer->st_ino==out_buffer->st_ino)){
 				free(in_buffer); free(out_buffer);
 				return 3;
 			} else {
 				free(in_buffer); free(out_buffer);
 				return 0;
 			}
-		} else if((in_buffer.st_mode & S_IFLNK) && !(out_buffer.st_mode & S_IFLNK)){
+		} else if((in_buffer->st_mode & S_IFLNK) 
+		&& !(out_buffer->st_mode & S_IFLNK)){
 			// Only the input file is a symlink
 			// Check if input points to output
-			stat(in_path,&in_buffer);
-			stat(out_path,&in_buffer);
-			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+			stat(in_path,in_buffer);
+			stat(out_path,in_buffer);
+			if((in_buffer->st_dev==out_buffer->st_dev) 
+			&& (in_buffer->st_ino==out_buffer->st_ino)){
 				free(in_buffer); free(out_buffer);
 				return 4;
 			} else {
@@ -142,9 +153,10 @@ int isSameFiles(char *in_path, char *out_path){
 		} else {
 			// Only the output file is a symlink
 			// Check if output points to input
-			stat(in_path,&in_buffer);
-			stat(out_path,&out_buffer);
-			if((in_buffer.st_dev==out_buffer.st_dev) && (in_buffer.st_ino==out_buffer.st_ino)){
+			stat(in_path,in_buffer);
+			stat(out_path,out_buffer);
+			if((in_buffer->st_dev==out_buffer->st_dev) 
+			&& (in_buffer->st_ino==out_buffer->st_ino)){
 				free(in_buffer); free(out_buffer);
 				return 5;
 			} else {
@@ -180,8 +192,8 @@ int main(int argc, char *argv[]){
 
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
-  //char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.15 $";
+  char temp_buf_chk[16];
+  char rcs_vers[18] = "$Revision: 1.16 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -338,7 +350,7 @@ int main(int argc, char *argv[]){
     	if((fileExists(outfile_name))!=1){
     		// <outfile> DOES NOT exist
     		// Check permissions of creating <outfile>
-    		errno=0
+    		errno=0;
     		outfile = fopen(outfile_name,"w");
     		if((outfile==NULL) || (errno !=0)){
     			perror("Error Code 8: On <outfile>");
@@ -407,7 +419,7 @@ int main(int argc, char *argv[]){
     }
     
     // Check if <infile> or <outfile> is a char/block special device
-    switch(isRegularFile(infile_name){
+    switch(isRegularFile(infile_name)){
     	case 0:
     		// Regular File
     		break;
@@ -483,8 +495,7 @@ int main(int argc, char *argv[]){
     //		than <outfile>, else it is not a link but a regular file.
     //	<outfile> may exist, and if it does exist and is a
     //		symlink/hardlink, it points to a seperate regular file
-    //		than <infile>, else it is not a link but a regular file.
-    
+    //		than <infile>, else it is not a link but a regular file.    
     
     // DEBUGGING CODE //
     if(DEBUG==1){
@@ -497,33 +508,28 @@ int main(int argc, char *argv[]){
     
     // Decryption Mode
     if(deco==1 && enco==0){
-      // Password in cmd arg
-      if(pass==1){
+      if(pass==1 && safe==0){
         // temp_buf has password
-        
+      	strcpy(temp_buf_chk,"\0"); // Now unused
+      } else if(pass==0 && safe==1){
+        // Ask for password twice
+      } else if(pass==0 && safe==0){
+      	// Ask for password once
       } else{
-        if(safe==1){
-          // Ask for password twice
-          
-        } else{
-          // Ask for password once
-          
-        }
+      	// Error both -p and -s given
       }
     // Encryption Mode
     } else if(deco==0 && enco==1){
-      // Password in the cmd arg
-      if(pass==1){
-        // temp_buf has password
-      } else{
-        if(safe==1){
-          // Ask for password twice
-          
-        } else{
-          // Ask for password once
-          
-        }
-      }
+    	if(pass==1 && safe==0){
+    		// temp_buf as password
+    		strcpy(temp_buf_chk,"\0"); // Now unused
+    	} else if(pass==0 && safe==1){
+    		// Ask for password twice
+    	} else if(pass==0 && safe==0){
+    		// Ask for password once
+    	} else {
+    		// Error both -p and -s given
+    	}
     // Both Encrypt/Decrypt OR Neither Encrypt/Decrypt
     } else {
       fprintf(stderr,"Error Code 3: Invalid execution\n");
