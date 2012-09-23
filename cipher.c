@@ -193,7 +193,7 @@ int main(int argc, char *argv[]){
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.16 $";
+  char rcs_vers[18] = "$Revision: 1.17 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -505,31 +505,24 @@ int main(int argc, char *argv[]){
       printf("print to stdout=%i\n",stdout_outfile);
     }
     ////////////////////
+   	
+   	if(pass==1 && safe==0){
+   		// temp_buf has password
+   		strcpy(temp_buf_chk,"\0");
+   	} else if(pass==0 && safe==1){
+   		// Ask for password twice
+   	} else if(pass==0 && safe==0){
+     	// Ask for password once
+   	} else {
+   		// Error both -p and -s given
+   	}
     
     // Decryption Mode
     if(deco==1 && enco==0){
-      if(pass==1 && safe==0){
-        // temp_buf has password
-      	strcpy(temp_buf_chk,"\0"); // Now unused
-      } else if(pass==0 && safe==1){
-        // Ask for password twice
-      } else if(pass==0 && safe==0){
-      	// Ask for password once
-      } else{
-      	// Error both -p and -s given
-      }
+    
     // Encryption Mode
     } else if(deco==0 && enco==1){
-    	if(pass==1 && safe==0){
-    		// temp_buf as password
-    		strcpy(temp_buf_chk,"\0"); // Now unused
-    	} else if(pass==0 && safe==1){
-    		// Ask for password twice
-    	} else if(pass==0 && safe==0){
-    		// Ask for password once
-    	} else {
-    		// Error both -p and -s given
-    	}
+    
     // Both Encrypt/Decrypt OR Neither Encrypt/Decrypt
     } else {
       fprintf(stderr,"Error Code 3: Invalid execution\n");

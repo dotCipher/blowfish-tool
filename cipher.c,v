@@ -1,10 +1,15 @@
-head	1.16;
+head	1.17;
 access;
 symbols;
 locks
-	cjmoore:1.16; strict;
+	cjmoore:1.17; strict;
 comment	@ * @;
 
+
+1.17
+date	2012.09.23.21.40.42;	author cjmoore;	state Exp;
+branches;
+next	1.16;
 
 1.16
 date	2012.09.23.21.13.08;	author cjmoore;	state Exp;
@@ -92,9 +97,9 @@ desc
 @
 
 
-1.16
+1.17
 log
-@Debugged
+@Fixed formatting
 @
 text
 @#include <stdio.h>
@@ -292,7 +297,7 @@ int main(int argc, char *argv[]){
   /* Temp buffer to store user input (user password) */
   char temp_buf[16];
   char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.15 $";
+  char rcs_vers[18] = "$Revision: 1.16 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -604,31 +609,24 @@ int main(int argc, char *argv[]){
       printf("print to stdout=%i\n",stdout_outfile);
     }
     ////////////////////
+   	
+   	if(pass==1 && safe==0){
+   		// temp_buf has password
+   		strcpy(temp_buf_chk,"\0");
+   	} else if(pass==0 && safe==1){
+   		// Ask for password twice
+   	} else if(pass==0 && safe==0){
+     	// Ask for password once
+   	} else {
+   		// Error both -p and -s given
+   	}
     
     // Decryption Mode
     if(deco==1 && enco==0){
-      if(pass==1 && safe==0){
-        // temp_buf has password
-      	strcpy(temp_buf_chk,"\0"); // Now unused
-      } else if(pass==0 && safe==1){
-        // Ask for password twice
-      } else if(pass==0 && safe==0){
-      	// Ask for password once
-      } else{
-      	// Error both -p and -s given
-      }
+    
     // Encryption Mode
     } else if(deco==0 && enco==1){
-    	if(pass==1 && safe==0){
-    		// temp_buf as password
-    		strcpy(temp_buf_chk,"\0"); // Now unused
-    	} else if(pass==0 && safe==1){
-    		// Ask for password twice
-    	} else if(pass==0 && safe==0){
-    		// Ask for password once
-    	} else {
-    		// Error both -p and -s given
-    	}
+    
     // Both Encrypt/Decrypt OR Neither Encrypt/Decrypt
     } else {
       fprintf(stderr,"Error Code 3: Invalid execution\n");
@@ -666,6 +664,42 @@ int main(int argc, char *argv[]){
   }
   return 0;
 }
+@
+
+
+1.16
+log
+@Debugged
+@
+text
+@d196 1
+a196 1
+  char rcs_vers[18] = "$Revision: 1.15 $";
+d508 11
+d522 1
+a522 10
+      if(pass==1 && safe==0){
+        // temp_buf has password
+      	strcpy(temp_buf_chk,"\0"); // Now unused
+      } else if(pass==0 && safe==1){
+        // Ask for password twice
+      } else if(pass==0 && safe==0){
+      	// Ask for password once
+      } else{
+      	// Error both -p and -s given
+      }
+d525 1
+a525 10
+    	if(pass==1 && safe==0){
+    		// temp_buf as password
+    		strcpy(temp_buf_chk,"\0"); // Now unused
+    	} else if(pass==0 && safe==1){
+    		// Ask for password twice
+    	} else if(pass==0 && safe==0){
+    		// Ask for password once
+    	} else {
+    		// Error both -p and -s given
+    	}
 @
 
 
