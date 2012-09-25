@@ -8,7 +8,7 @@ CC=gcc
 # Compile flags (default:
 # -O2 : Optimize (more)
 # -g  : Debug info for OS
-# 
+# -Wall -Werror : all warnings = errors
 CFLAGS=-g -O2 -Wall -Werror
 
 SRC=bf_cfb64.c \
@@ -16,12 +16,33 @@ SRC=bf_cfb64.c \
 	bf_skey.c \
 	cipher.c
 
-HDRS=bf_pi.h bf_locl.h
+OBJECTS=bf_cfb64.o \
+	bf_enc.o \
+	bf_skey.o \
+	cipher.o
 
 EXEC_FILE=cipher
 
-$(EXEC_FILE): $(SRC) $(HDRS)
-	$(CC) $(CFLAGS) -o $@ $(SRC)
+##### MAIN RULE ######
+$(EXEC_FILE): $(OBJECTS)
+	$(CC) $(CFLAGS) -o $@ $(OBJECTS)
 
+##### OBJECT RULES #####
+#%.o: %.c
+#	$(CC) $(CFLAGS) -c $<
+
+bf_cfb64.o: bf_cfb64.c blowfish.h bf_locl.h
+	$(CC) $(CFLAGS) -c $<
+
+bf_enc.o: bf_enc.c blowfish.h bf_locl.h
+	$(CC) $(CFLAGS) -c $<
+
+bf_skey.o: bf_skey.c blowfish.h bf_locl.h bf_pi.h
+	$(CC) $(CFLAGS) -c $<
+
+cipher.o: cipher.c blowfish.h
+	$(CC) $(CFLAGS) -c $<
+
+##### CLEAN RULE #####
 clean:
-	rm -rf *.o $(EXEC_FILE)
+	rm *.o $(EXEC_FILE)

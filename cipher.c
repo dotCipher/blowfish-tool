@@ -191,9 +191,10 @@ int main(int argc, char *argv[]){
   //char from[PAGE_SIZE], to[PAGE_SIZE];
 
   /* Temp buffer to store user input (user password) */
+  char *temp_pass;
   char temp_buf[16];
   char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.17 $";
+  char rcs_vers[18] = "$Revision: 1.18 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -252,7 +253,7 @@ int main(int argc, char *argv[]){
     default:
     	fprintf(stderr,"Error Code 3: Invalid execution\n");
       fprintf(stderr,"Usage: %s [OPTIONS] [-p PASSWORD] <infile> <outfile>\n", argv[0]);
-      return 3;
+      exit(3);
     }
   }
   
@@ -260,7 +261,7 @@ int main(int argc, char *argv[]){
   if(DEBUG==1){
     printf("\n[----- DEBUGGING ENABLED -----]\n");
     printf("To disable, change DEBUG variable in cipher.c from 1 to 0 and remake\n");
-    printf("\ndecode=%i \nencode=%i \nversion=%i \nhelp=%i \nmmap=%i \npass=%i \n", deco, enco, vers, help, mmap, pass);
+    printf("\ndecode=%i \nencode=%i \nversion=%i \nhelp=%i \nmmap=%i \npass=%i \nsafe=%i\n", deco, enco, vers, help, mmap, pass, safe);
 
     if(pass==1){
       printf("temp_buf=%s \npassArgNum=%i\n",temp_buf,passArgNum);
@@ -270,7 +271,7 @@ int main(int argc, char *argv[]){
     printf("argc=%i\n",argc);
   }
   ////////////////////
-  
+    
   if(help==1){
     printf("Blowfish Cipher Tool by Cody Moore \n");
     printf("Usage: %s [OPTIONS] [-p PASSWORD] <infile> <outfile> \n", argv[0]);
@@ -278,14 +279,14 @@ int main(int argc, char *argv[]){
     printf("   -p [PASS] :  Use [PASS] as password (skip prompt) \n");
     printf("   -d        :  Decrypt <infile> to <outfile> \n");
     printf("   -e        :  Encrypt <infile> to <outfile> \n");
-    printf("   -v        :  Print out version number \n");
+    printf("   -v        :  Print version number \n");
     printf("   -h        :  Show help screen (you are looking at it) \n");
     printf("   -m        :  Enable memory mapping - mmap() \n");
     printf("   -s        :  Safe Mode (prompt for password twice)\n");
-    return 1;
+    exit(1);
   } else if(vers==1){
     printf("Blowfish Cipher Tool - v%s\n", version);
-    return 2;
+    exit(2);
   } else if(argc>=3){
     // Check for proper format of <infile> and <outfile>
     if((strcmp(argv[passArgNum],argv[argc-2])==0) && passArgNum!=0){
@@ -293,7 +294,7 @@ int main(int argc, char *argv[]){
         printf("pass=%s \nargc-2=%s \n",argv[passArgNum],argv[argc-2]);
       }
       fprintf(stderr,"Error Code 4: No <outfile> specified\n");
-      return 4;
+      exit(4);
     }
     // Take <infile> and <outfile>
     infile_name=(char*)malloc(strlen(argv[argc-2]));
@@ -319,13 +320,13 @@ int main(int argc, char *argv[]){
         fprintf(stderr,"Error Code 5: <infile> does not exist\n");
         free(infile_name);
         free(outfile_name);
-        return 5;
+        exit(5);
       } else if((isDirectory(infile_name))!=1){
         // <infile> DOES exist AND is a directory
         fprintf(stderr,"Error Code 6: <infile> is a directory\n");
         free(infile_name);
         free(outfile_name);
-        return 6;
+        exit(6);
       } else {
       	// <infile> DOES exist AND is NOT a directory
       	// Check permissions and file type of <infile>
@@ -335,7 +336,7 @@ int main(int argc, char *argv[]){
       		perror("Error Code 8: On <infile>");
       		free(infile_name);
       		free(outfile_name);
-      		return 8;
+      		exit(8);
       	}
       }
     }
@@ -356,14 +357,14 @@ int main(int argc, char *argv[]){
     			perror("Error Code 8: On <outfile>");
     			free(infile_name);
     			free(outfile_name);
-    			return 8;
+    			exit(8);
     		}
     	} else if((isDirectory(outfile_name))!=1){
     		// <outfile> DOES exist AND is directory
     		fprintf(stderr,"Error Code 6: <outfile> is a directory\n");
     		free(infile_name);
     		free(outfile_name);
-    		return 6;
+    		exit(6);
     	} else {
     		// <outfile> DOES exist AND is NOT a directory
     		// Check permissions and file type of <outfile>
@@ -374,7 +375,7 @@ int main(int argc, char *argv[]){
     			perror("Error Code 8: On <outfile>");
     			free(infile_name);
     			free(outfile_name);
-    			return 8;
+    			exit(8);
     		}
     	}
     }
@@ -389,31 +390,31 @@ int main(int argc, char *argv[]){
     	fprintf(stderr,"Error Code 7: <infile> and <outfile> are the same path\n");
     	free(infile_name);
     	free(outfile_name);
-    	return 7;
+    	exit(7);
     } else if(sf_code==2){
     	// Hardlinks to same file
     	fprintf(stderr,"Error Code 7: <infile> and <outfile> are hardlinks to same file\n");
     	free(infile_name);
     	free(outfile_name);
-    	return 7;
+    	exit(7);
     } else if(sf_code==3){
     	// In/Out symlinks point to same file
     	fprintf(stderr,"Error Code 7: <infile> and <outfile> are symlinks to same file\n");
     	free(infile_name);
     	free(outfile_name);
-    	return 7;
+    	exit(7);
     } else if(sf_code==4){
     	// Input symlink points to outfile
     	fprintf(stderr,"Error Code 7: <infile> symlink points to <outfile>\n");
     	free(infile_name);
     	free(outfile_name);
-    	return 7;
+    	exit(7);
     } else if(sf_code==5){
     	// Output symlink points to infile
     	fprintf(stderr,"Error Code 7: <outfile> symlink points to <infile>\n");
     	free(infile_name);
     	free(outfile_name);
-    	return 7;
+    	exit(7);
     } else{
     	// No error, continue on
     }
@@ -428,31 +429,31 @@ int main(int argc, char *argv[]){
     		fprintf(stderr,"Error Code 7: <infile> is a character device\n");
     		free(infile_name);
     		free(outfile_name);
-    		return 7;
+    		exit(7);
     	case 2:
     		// Block Device
     		fprintf(stderr,"Error Code 7: <infile> is a block device\n");
     		free(infile_name);
     		free(outfile_name);
-    		return 7;
+    		exit(7);
     	case 3:
     		// FIFO - Named Pipe
     		fprintf(stderr,"Error Code 7: <infile> is a named pipe\n");
     		free(infile_name);
     		free(outfile_name);
-    		return 7;
+    		exit(7);
     	case 4:
     		// Socket
     		fprintf(stderr,"Error Code 7: <infile> is a socket\n");
     		free(infile_name);
     		free(outfile_name);
-    		return 7;
+    		exit(7);
     	default:
     		// Other (symlink or directory, unreachable with preconditions)
     		fprintf(stderr,"Error Code 7: Unknown file <infile>\n");
     		free(infile_name);
     		free(outfile_name);
-    		return 7;
+    		exit(7);
     }
     switch(isRegularFile(outfile_name)){
     	case 0:
@@ -463,31 +464,31 @@ int main(int argc, char *argv[]){
     		fprintf(stderr,"Error Code 7: <outfile> is a character device\n");
     		free(infile_name);
     		free(outfile_name);
-    		return 7;
+    		exit(7);
     	case 2:
     		// Block Device
     		fprintf(stderr,"Error Code 7: <outfile> is a block device\n");
     		free(infile_name);
     		free(outfile_name);
-    		return 7;
+    		exit(7);
     	case 3:
     		// FIFO - Named Pipe
     		fprintf(stderr,"Error Code 7: <outfile> is a named pipe\n");
     		free(infile_name);
     		free(outfile_name);
-    		return 7;
+    		exit(7);
     	case 4:
     		// Socket
     		fprintf(stderr,"Error Code 7: <outfile> is a socket\n");
     		free(infile_name);
     		free(outfile_name);
-    		return 7;
+    		exit(7);
     	default:
     		// Other (symlink or directory, unreachable with preconditions)
     		fprintf(stderr,"Error Code 7: Unknown file <outfile>\n");
     		free(infile_name);
     		free(outfile_name);
-    		return 7;
+    		exit(7);
     }
     //	Post-conditions: 
     //	<infile> exists, it is NOT a directory, and if it is a 
@@ -506,15 +507,61 @@ int main(int argc, char *argv[]){
     }
     ////////////////////
    	
+   	// Check for password/safe inputs
+   	passArgNum=0; // Re-using var for pass matching
    	if(pass==1 && safe==0){
    		// temp_buf has password
    		strcpy(temp_buf_chk,"\0");
-   	} else if(pass==0 && safe==1){
-   		// Ask for password twice
-   	} else if(pass==0 && safe==0){
-     	// Ask for password once
+   	} else if(pass==0){
+   		// Start password matching loop
+   		while(passArgNum==0){
+   			// Ask for first password
+   			strcpy(temp_buf,"\0");
+   			while(strcmp(temp_buf,"\0")!=0){
+   				temp_pass = getpass("Enter Password: ");
+   				if((unsigned)strlen(temp_pass) <= 16){
+   					strcpy(temp_buf,temp_pass);
+   				} else {
+   					fprintf(stderr,"Error: Password cannot be longer than 16 characters\n");
+   				}
+   			}
+   			if(DEBUG==1){
+   				printf("The 1st password is: %s\r\n",temp_buf);
+   			}
+   			if(safe==1){
+     			// Ask for second password
+     			strcpy(temp_buf_chk,"\0");
+     			while(strcmp(temp_buf,"\0")!=0){
+     				temp_pass = getpass("Confirm Password: ");
+     				if((unsigned)strlen(temp_pass) <= 16){
+     					strcpy(temp_buf,temp_pass);
+     				} else {
+     					fprintf(stderr,"Error: Password cannot be longer than 16 characters\n");
+     				}
+     			}
+     			if(DEBUG==1){
+     				printf("The 2nd password is: %s\r\n",temp_buf_chk);
+     			}	
+     			// Do the passwords match?
+     			if(strcmp(temp_buf,temp_buf_chk)==0){
+     				// Yes! :)
+     				passArgNum=1;
+     			} else {
+     				// No :(
+     				passArgNum=0;
+     				fprintf(stderr,"Error: Passwords do not match, re-prompting...\n");
+     			}
+     		} else {
+     			// No safe statement given, no password to match
+     			passArgNum=1;
+     		}
+     	}
    	} else {
    		// Error both -p and -s given
+   		fprintf(stderr,"Error Code 3: Cannot use \'-p\' and \'-s\'\n");
+   		free(infile_name);
+   		free(outfile_name);
+   		exit(3);
    	}
     
     // Decryption Mode
@@ -528,7 +575,9 @@ int main(int argc, char *argv[]){
       fprintf(stderr,"Error Code 3: Invalid execution\n");
       fprintf(stderr,"Must use EITHER Encrypt (-e) OR Decrypt (-d)\n");
       fprintf(stderr,"       i.e.  %s [-e|-d] <infile> <outfile>\n",argv[0]);
-      return 3;
+      free(infile_name);
+      free(outfile_name);
+      exit(3);
     }	
 
     /* don't worry about these two: just define/use them */
@@ -550,13 +599,14 @@ int main(int argc, char *argv[]){
 
     /* Decrypting is the same: just pass BF_DECRYPT instead */
     // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_DECRYPT);
+  	
   	free(infile_name);
   	free(outfile_name);
   } else{
  		fprintf(stderr,"Error Code 3: Invalid execution\n");
     fprintf(stderr,"Must include <infile> and <outfile> parameters\n");
     fprintf(stderr,"       i.e.  %s [-e|-d] <infile> <outfile>\n", argv[0]);
-    return 3;
+    exit(3);
   }
-  return 0;
+  exit(0);
 }
