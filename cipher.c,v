@@ -1,10 +1,14 @@
-head	1.18;
+head	1.19;
 access;
 symbols;
-locks
-	cjmoore:1.18; strict;
+locks; strict;
 comment	@ * @;
 
+
+1.19
+date	2012.09.26.17.38.12;	author cjmoore;	state Exp;
+branches;
+next	1.18;
 
 1.18
 date	2012.09.25.19.37.26;	author cjmoore;	state Exp;
@@ -102,9 +106,9 @@ desc
 @
 
 
-1.18
+1.19
 log
-@Added password checking
+@More stuff
 @
 text
 @#include <stdio.h>
@@ -300,10 +304,11 @@ int main(int argc, char *argv[]){
   //char from[PAGE_SIZE], to[PAGE_SIZE];
 
   /* Temp buffer to store user input (user password) */
-  char *temp_pass;
+	const int PASS_MAX = 16;  
+	char *temp_pass;
   char temp_buf[16];
   char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.17 $";
+  char rcs_vers[18] = "$Revision: 1.18 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -353,12 +358,18 @@ int main(int argc, char *argv[]){
       safe = 1;
       break;
     case 'p':
-      strcpy(temp_buf, optarg);
-      // Gets argc number from optind for comparison
-      //  and error checking later
-      passArgNum = optind-1;
-      pass = 1;
-      break;
+    	if(strlen(optarg) > PASS_MAX){
+    		fprintf(stderr,"Error Code 3: Invalid Execution\n");
+    		fprintf(stderr,"Password cannot exceed 16 characters.\n");
+    		exit(3);
+    	} else {
+      	strcpy(temp_buf, optarg);
+      	// Gets argc number from optind for comparison
+				//  and error checking later
+				passArgNum = optind-1;
+    	  pass = 1;
+      	break;
+      }
     default:
     	fprintf(stderr,"Error Code 3: Invalid execution\n");
       fprintf(stderr,"Usage: %s [OPTIONS] [-p PASSWORD] <infile> <outfile>\n", argv[0]);
@@ -639,15 +650,8 @@ int main(int argc, char *argv[]){
    			}
    			if(safe==1){
      			// Ask for second password
-     			strcpy(temp_buf_chk,"\0");
-     			while(strcmp(temp_buf,"\0")!=0){
-     				temp_pass = getpass("Confirm Password: ");
-     				if((unsigned)strlen(temp_pass) <= 16){
-     					strcpy(temp_buf,temp_pass);
-     				} else {
-     					fprintf(stderr,"Error: Password cannot be longer than 16 characters\n");
-     				}
-     			}
+   				temp_pass = getpass("Confirm Password: ");
+     			strcpy(temp_buf_chk,temp_pass);
      			if(DEBUG==1){
      				printf("The 2nd password is: %s\r\n",temp_buf_chk);
      			}	
@@ -719,6 +723,39 @@ int main(int argc, char *argv[]){
   }
   exit(0);
 }
+@
+
+
+1.18
+log
+@Added password checking
+@
+text
+@d194 2
+a195 1
+  char *temp_pass;
+d198 1
+a198 1
+  char rcs_vers[18] = "$Revision: 1.17 $";
+d248 12
+a259 6
+      strcpy(temp_buf, optarg);
+      // Gets argc number from optind for comparison
+      //  and error checking later
+      passArgNum = optind-1;
+      pass = 1;
+      break;
+d540 2
+a541 9
+     			strcpy(temp_buf_chk,"\0");
+     			while(strcmp(temp_buf,"\0")!=0){
+     				temp_pass = getpass("Confirm Password: ");
+     				if((unsigned)strlen(temp_pass) <= 16){
+     					strcpy(temp_buf,temp_pass);
+     				} else {
+     					fprintf(stderr,"Error: Password cannot be longer than 16 characters\n");
+     				}
+     			}
 @
 
 
