@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include "blowfish.h"
 
 /* Handles checking if file exists
@@ -181,37 +182,46 @@ int isSameFiles(char *in_path, char *out_path){
  * 8 = File i/o OR permission error
  */
 int main(int argc, char *argv[]){
+  errno = 0;
   // 1=Enable Debug Mode
   // 0=Disable Debug Mode
   int DEBUG = 1;
-  errno = 0;
+  int i = 0; // General purpose index
   
   /* Initialize from and to buffers to OS pagesize */
-  //int PAGE_SIZE=getpagesize();
-  //char from[PAGE_SIZE], to[PAGE_SIZE];
+  int page_size=getpagesize();
+  unsigned char *from = (unsigned char*)malloc(page_size);
+  unsigned char *to = (unsigned char*)malloc(page_size); 
 
   /* Temp buffer to store user input (user password) */
-  char *temp_pass;
+	const int PASS_MAX = 16;  
+	char *temp_pass;
   char temp_buf[16];
   char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.18 $";
+  char rcs_vers[18] = "$Revision: 1.20 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
   /* File names/descriptors/stats */
-  FILE *infile;
-  FILE *outfile;
+  int infile_fd;
+  int outfile_fd;
   char *infile_name;
   char *outfile_name;
   int stdin_infile;
   int stdout_outfile;
   int sf_code;
-  int len;
+  int bytes_read;
+  int bytes_write;
 
   /* Define boolean ints for params */
   int deco, enco, vers, help, mmap, pass, opt, safe;
+  
+  /* don't worry about these two: just define/use them */
+  int n = 0;  /* internal blowfish variables */
+  unsigned char iv[8];  /* Initialization Vector */
+  
   /* Define a structure to hold the key */
-  // BF_KEY key;
+  BF_KEY key;
   
   /* Parse out version properly for display */
   rcs_vers_cp = strdup(rcs_vers);
@@ -219,8 +229,10 @@ int main(int argc, char *argv[]){
   version = strtok(NULL," ");
   free(rcs_vers_cp);
   
+  /* fill the IV with zeros (or any other fixed data) */
+  memset(iv, 0, 8);
+  
   /* Initialize and check params */
-  len = 128;
   stdin_infile = 0; stdout_outfile = 0;
   deco = 0; enco = 0; vers = 0; help = 0; mmap = 0; pass = 0; safe = 0;
   while((opt = getopt(argc, argv, "devhmsp:")) != -1) {
@@ -244,12 +256,18 @@ int main(int argc, char *argv[]){
       safe = 1;
       break;
     case 'p':
-      strcpy(temp_buf, optarg);
-      // Gets argc number from optind for comparison
-      //  and error checking later
-      passArgNum = optind-1;
-      pass = 1;
-      break;
+    	if(strlen(optarg) > PASS_MAX){
+    		fprintf(stderr,"Error Code 3: Invalid Execution\n");
+    		fprintf(stderr,"Password cannot exceed 16 characters.\n");
+    		exit(3);
+    	} else {
+      	strcpy(temp_buf, optarg);
+      	// Gets argc number from optind for comparison
+				//  and error checking later
+				passArgNum = optind-1;
+    	  pass = 1;
+      	break;
+      }
     default:
     	fprintf(stderr,"Error Code 3: Invalid execution\n");
       fprintf(stderr,"Usage: %s [OPTIONS] [-p PASSWORD] <infile> <outfile>\n", argv[0]);
@@ -406,7 +424,11 @@ int main(int argc, char *argv[]){
     } else if(sf_code==4){
     	// Input symlink points to outfile
     	fprintf(stderr,"Error Code 7: <infile> symlink points to <outfile>\n");
-    	free(infile_name);
+    	free(infile_name);if(bytes_read!=page_size){
+    			
+    			} else {
+    			
+    			}
     	free(outfile_name);
     	exit(7);
     } else if(sf_code==5){
@@ -530,15 +552,8 @@ int main(int argc, char *argv[]){
    			}
    			if(safe==1){
      			// Ask for second password
-     			strcpy(temp_buf_chk,"\0");
-     			while(strcmp(temp_buf,"\0")!=0){
-     				temp_pass = getpass("Confirm Password: ");
-     				if((unsigned)strlen(temp_pass) <= 16){
-     					strcpy(temp_buf,temp_pass);
-     				} else {
-     					fprintf(stderr,"Error: Password cannot be longer than 16 characters\n");
-     				}
-     			}
+   				temp_pass = getpass("Confirm Password: ");
+     			strcpy(temp_buf_chk,temp_pass);
      			if(DEBUG==1){
      				printf("The 2nd password is: %s\r\n",temp_buf_chk);
      			}	
@@ -563,13 +578,93 @@ int main(int argc, char *argv[]){
    		free(outfile_name);
    		exit(3);
    	}
+    // temp_buf contains the right password for encryption or decryption
+    
+    /* call this function once to setup the cipher key */
+    BF_set_key(&key, PASS_MAX, temp_buf);
+    
+    errno=0;
+    // Open up infile
+    if((infile_fd=open(infile_name, O_RDONLY, S_IREAD))==-1){
+    	perror("Error Code 8: On <infile> ");
+    	free(infile_name);
+    	free(outfile_name);
+    	exit(8);
+    }
+    errno=0;
+    // Open up outfile
+    if((outfile_fd=open(outfile_name, O_WRONLY | O_CREAT 
+    | O_TRUNC | O_APPEND, S_IWRITE))==-1){
+    	perror("Error Code 8: On <outfile> ");
+    	free(infile_name);
+    	free(outfile_name);
+    	exit(8); 
+    }
     
     // Decryption Mode
     if(deco==1 && enco==0){
+    /* Decrypting is the same: just pass BF_DECRYPT instead */
+    BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_DECRYPT);
     
     // Encryption Mode
     } else if(deco==0 && enco==1){
-    
+    	// Start reading the bytes of length page_size from infile
+    	while((bytes_read=read(infile_fd,from,page_size)!=0){
+    		if(bytes_read==-1){
+    			// Maybe partial read encountered?
+    			perror("Error Code 8: On <infile> ");
+    			free(infile_name);
+    			free(outfile_name);
+    			close(infile_fd);
+    			close(outfile_fd);
+    			exit(8);
+    		} else if(bytes_read > 0){
+    			if(DEBUG==1){
+    				printf("\nbytes_read=%i\n",bytes_read);
+    				printf("from buffer=%s\n",from);
+    			}
+    			// Encrypt the buffer
+    			BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_ENCRYPT);
+    			// Write buffer to file
+    			if((bytes_write=write(outfile_fd,to,page_size))==-1){
+    				// Maybe partial write encountered?
+    				perror("Error Code 8: On <outfile> ");
+    				free(infile_name);
+    				free(outfile_name);
+    				close(infile_fd);
+    				close(outfile_fd);
+    				exit(8);
+    			}
+    			// Was it uneven?
+    			if(bytes_read < page_size){
+    				// Last iteration:
+    				// (page_size)-(bytes_read) = number of padded zeros at end
+    				// Write bytes to end of file in ASCII 
+    				i=bytes_read;
+    				while(i-256>=256){
+    					if((bytes_write=write(outfile_fd,(unsigned char)(255), 1)==-1){
+    						perror("Error Code 8: On <outfile> ");
+    						free(infile_name);
+    						free(outfile_name);
+    						close(infile_fd);
+    						close(outfile_fd);
+    						exit(8);
+    					}
+    					i=i-256;
+    				}
+						if((bytes_write=write(outfile_fd,(unsigned char)(i),1)==-1){
+							perror("Error Code 8: On <outfile> ");
+    					free(infile_name);
+    					free(outfile_name);
+    					close(infile_fd);
+    					close(outfile_fd);
+    					exit(8);
+						}
+    			}
+    		}
+    		// else bytes_read == 0, terminate loop
+    	}
+    	
     // Both Encrypt/Decrypt OR Neither Encrypt/Decrypt
     } else {
       fprintf(stderr,"Error Code 3: Invalid execution\n");
@@ -578,28 +673,7 @@ int main(int argc, char *argv[]){
       free(infile_name);
       free(outfile_name);
       exit(3);
-    }	
-
-    /* don't worry about these two: just define/use them */
-    // int n = 0;  /* internal blowfish variables */
-    // unsigned char iv[8];  /* Initialization Vector */
-
-    /* fill the IV with zeros (or any other fixed data) */
-    // memset(iv, 0, 8);
-
-    /* call this function once to setup the cipher key */
-    // BF_set_key(&key, 16, temp_buf);
-
-    /*
-     * This is how you encrypt an input char* buffer "from", of length "len"
-     * onto output buffer "to", using key "key".  Just pass "iv" and "&n" as
-     * shown, and don't forget to actually tell the function to BF_ENCRYPT.
-     */
-    // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_ENCRYPT);
-
-    /* Decrypting is the same: just pass BF_DECRYPT instead */
-    // BF_cfb64_encrypt(from, to, len, &key, iv, &n, BF_DECRYPT);
-  	
+    }
   	free(infile_name);
   	free(outfile_name);
   } else{
