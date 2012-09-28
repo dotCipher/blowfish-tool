@@ -10,14 +10,22 @@
 #include "blowfish.h"
 
 /* Handles checking if file exists
+ * as well as proper permissions on file
  * SUCCESS CODE(S):
  * 0 = Success (File DOES NOT exist)
  * ERROR CODE(S):
  * 1 = File does exist
+ * 2 = File does exist & no permissions
  */
 int fileExists(char *fName){
   struct stat buf;
-  return (stat(fName, &buf)==0);
+  errno=0;
+  int chk = stat(fName, &buf);
+  if(errno!=0){
+  	return (chk==0);
+	} else {
+		return 2;
+	}
 }
 
 /* Handles checking if path is directory
@@ -186,7 +194,6 @@ int main(int argc, char *argv[]){
   // 1=Enable Debug Mode
   // 0=Disable Debug Mode
   int DEBUG = 1;
-  int i = 0; // General purpose index
   
   /* Initialize from and to buffers to OS pagesize */
   int page_size=getpagesize();
@@ -198,7 +205,7 @@ int main(int argc, char *argv[]){
 	char *temp_pass;
   char temp_buf[16];
   char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.20 $";
+  char rcs_vers[18] = "$Revision: 1.21 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -319,7 +326,6 @@ int main(int argc, char *argv[]){
     outfile_name=(char*)malloc(strlen(argv[argc-1]));
     strcpy(outfile_name, argv[argc-1]);
 		strcpy(infile_name, argv[argc-2]);
-		// FREE INFILE_NAME AND OUTFILE_NAME AT ALL RETURNS
     
     // Check if stdout or stdin is used
     //  in replace of <infile> or <outfile>
@@ -347,15 +353,6 @@ int main(int argc, char *argv[]){
         exit(6);
       } else {
       	// <infile> DOES exist AND is NOT a directory
-      	// Check permissions and file type of <infile>
-      	errno=0;
-      	infile = fopen(infile_name,"r");
-      	if(errno != 0){
-      		perror("Error Code 8: On <infile>");
-      		free(infile_name);
-      		free(outfile_name);
-      		exit(8);
-      	}
       }
     }
     // Postconditions:
@@ -368,15 +365,8 @@ int main(int argc, char *argv[]){
     if(stdout_outfile!=1){
     	if((fileExists(outfile_name))!=1){
     		// <outfile> DOES NOT exist
-    		// Check permissions of creating <outfile>
-    		errno=0;
-    		outfile = fopen(outfile_name,"w");
-    		if((outfile==NULL) || (errno !=0)){
-    			perror("Error Code 8: On <outfile>");
-    			free(infile_name);
-    			free(outfile_name);
-    			exit(8);
-    		}
+    		// do nothing - possible error caught
+    		// when calling open later on.
     	} else if((isDirectory(outfile_name))!=1){
     		// <outfile> DOES exist AND is directory
     		fprintf(stderr,"Error Code 6: <outfile> is a directory\n");
@@ -385,16 +375,7 @@ int main(int argc, char *argv[]){
     		exit(6);
     	} else {
     		// <outfile> DOES exist AND is NOT a directory
-    		// Check permissions and file type of <outfile>
     		fprintf(stderr, "Warning: <outfile> exists, overwritting...\n");
-    		errno=0;
-    		outfile = fopen(outfile_name, "w");
-    		if(errno != 0){
-    			perror("Error Code 8: On <outfile>");
-    			free(infile_name);
-    			free(outfile_name);
-    			exit(8);
-    		}
     	}
     }
     // Postconditions:
@@ -424,11 +405,7 @@ int main(int argc, char *argv[]){
     } else if(sf_code==4){
     	// Input symlink points to outfile
     	fprintf(stderr,"Error Code 7: <infile> symlink points to <outfile>\n");
-    	free(infile_name);if(bytes_read!=page_size){
-    			
-    			} else {
-    			
-    			}
+    	free(infile_name);
     	free(outfile_name);
     	exit(7);
     } else if(sf_code==5){
@@ -581,10 +558,11 @@ int main(int argc, char *argv[]){
     // temp_buf contains the right password for encryption or decryption
     
     /* call this function once to setup the cipher key */
-    BF_set_key(&key, PASS_MAX, temp_buf);
+    BF_set_key(&key, PASS_MAX, (unsigned char *)temp_buf);
     
+    /* Open up file descriptors */
     errno=0;
-    // Open up infile
+    // Open up infile fd
     if((infile_fd=open(infile_name, O_RDONLY, S_IREAD))==-1){
     	perror("Error Code 8: On <infile> ");
     	free(infile_name);
@@ -592,7 +570,7 @@ int main(int argc, char *argv[]){
     	exit(8);
     }
     errno=0;
-    // Open up outfile
+    // Open up outfile fd
     if((outfile_fd=open(outfile_name, O_WRONLY | O_CREAT 
     | O_TRUNC | O_APPEND, S_IWRITE))==-1){
     	perror("Error Code 8: On <outfile> ");
@@ -603,13 +581,8 @@ int main(int argc, char *argv[]){
     
     // Decryption Mode
     if(deco==1 && enco==0){
-    /* Decrypting is the same: just pass BF_DECRYPT instead */
-    BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_DECRYPT);
-    
-    // Encryption Mode
-    } else if(deco==0 && enco==1){
-    	// Start reading the bytes of length page_size from infile
-    	while((bytes_read=read(infile_fd,from,page_size)!=0){
+			// Start reading the bytes of length page_size from infile
+    	while((bytes_read=read(infile_fd,from,page_size))!=0){
     		if(bytes_read==-1){
     			// Maybe partial read encountered?
     			perror("Error Code 8: On <infile> ");
@@ -623,47 +596,86 @@ int main(int argc, char *argv[]){
     				printf("\nbytes_read=%i\n",bytes_read);
     				printf("from buffer=%s\n",from);
     			}
-    			// Encrypt the buffer
-    			BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_ENCRYPT);
-    			// Write buffer to file
-    			if((bytes_write=write(outfile_fd,to,page_size))==-1){
-    				// Maybe partial write encountered?
-    				perror("Error Code 8: On <outfile> ");
-    				free(infile_name);
-    				free(outfile_name);
-    				close(infile_fd);
-    				close(outfile_fd);
-    				exit(8);
-    			}
-    			// Was it uneven?
-    			if(bytes_read < page_size){
-    				// Last iteration:
-    				// (page_size)-(bytes_read) = number of padded zeros at end
-    				// Write bytes to end of file in ASCII 
-    				i=bytes_read;
-    				while(i-256>=256){
-    					if((bytes_write=write(outfile_fd,(unsigned char)(255), 1)==-1){
-    						perror("Error Code 8: On <outfile> ");
-    						free(infile_name);
-    						free(outfile_name);
-    						close(infile_fd);
-    						close(outfile_fd);
-    						exit(8);
-    					}
-    					i=i-256;
-    				}
-						if((bytes_write=write(outfile_fd,(unsigned char)(i),1)==-1){
-							perror("Error Code 8: On <outfile> ");
+    			// Was the read even with page_size?
+    			if(bytes_read == page_size){
+    				// Encrypt the buffer
+    				BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_DECRYPT);
+    				// Write buffer to file
+    				if((bytes_write=write(outfile_fd,to,page_size))==-1){
+    					// Maybe partial write encountered?
+    					perror("Error Code 8: On <outfile> ");
     					free(infile_name);
     					free(outfile_name);
     					close(infile_fd);
     					close(outfile_fd);
     					exit(8);
-						}
+    				}
+    			} else if(bytes_read < page_size){
+    				// Last iteration
+    				// Encrypt the buffer
+    				BF_cfb64_encrypt(from, to, bytes_read, &key, iv, &n, BF_DECRYPT);
+    				// Write buffer to file
+    				if((bytes_write=write(outfile_fd,to,page_size))==-1){
+    					// Maybe partial write encountered?
+    					perror("Error Code 8: On <outfile> ");
+    					free(infile_name);
+    					free(outfile_name);
+    					close(infile_fd);
+    					close(outfile_fd);
+    					exit(8);
+    				}
     			}
-    		}
-    		// else bytes_read == 0, terminate loop
+    		} // else bytes_read == 0, terminate while
     	}
+    
+    // Encryption Mode
+    } else if(deco==0 && enco==1){
+    	// Start reading the bytes of length page_size from infile
+    	while((bytes_read=read(infile_fd,from,page_size))!=0){
+    		if(bytes_read==-1){
+    			// Maybe partial read encountered?
+    			perror("Error Code 8: On <infile> ");
+    			free(infile_name);
+    			free(outfile_name);
+    			close(infile_fd);
+    			close(outfile_fd);
+    			exit(8);
+    		} else if(bytes_read > 0){
+    			if(DEBUG==1){
+    				printf("\nbytes_read=%i\n",bytes_read);
+    				printf("from buffer=%s\n",from);
+    			}
+    			// Was the read even with page_size?
+    			if(bytes_read == page_size){
+    				// Encrypt the buffer
+    				BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_ENCRYPT);
+    				// Write buffer to file
+    				if((bytes_write=write(outfile_fd,to,page_size))==-1){
+    					// Maybe partial write encountered?
+    					perror("Error Code 8: On <outfile> ");
+    					free(infile_name);
+    					free(outfile_name);
+    					close(infile_fd);
+    					close(outfile_fd);
+    					exit(8);
+    				}
+    			} else if(bytes_read < page_size){
+    				// Last iteration
+    				// Encrypt the buffer
+    				BF_cfb64_encrypt(from, to, bytes_read, &key, iv, &n, BF_ENCRYPT);
+    				// Write buffer to file
+    				if((bytes_write=write(outfile_fd,to,page_size))==-1){
+    					// Maybe partial write encountered?
+    					perror("Error Code 8: On <outfile> ");
+    					free(infile_name);
+    					free(outfile_name);
+    					close(infile_fd);
+    					close(outfile_fd);
+    					exit(8);
+    				}
+    			}
+    		} // else bytes_read == 0, terminate while
+    	}	
     	
     // Both Encrypt/Decrypt OR Neither Encrypt/Decrypt
     } else {
