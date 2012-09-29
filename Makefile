@@ -10,6 +10,7 @@ CC=gcc
 # -g  : Debug info for OS
 # -Wall -Werror : all warnings = errors
 CFLAGS=-g -O2 -Wall -Werror
+CDBGFLGS=-g -O0 -Wall -Werror
 
 SRC=bf_cfb64.c \
 	bf_enc.c \
@@ -20,6 +21,11 @@ OBJECTS=bf_cfb64.o \
 	bf_enc.o \
 	bf_skey.o \
 	cipher.o
+
+DBGOBJECTS=bf_cfb64_dbg.o \
+	bf_enc_dbg.o \
+	bf_skey_dbg.o \
+	cipher_dbg.o
 
 EXEC_FILE=cipher
 
@@ -43,6 +49,24 @@ bf_skey.o: bf_skey.c blowfish.h bf_locl.h bf_pi.h
 cipher.o: cipher.c blowfish.h
 	$(CC) $(CFLAGS) -c $<
 
+##### DEBUG RULES #####
+debug: cipher_dbg
+
+cipher_dbg: $(DBGOBJECTS)
+	$(CC) $(CDBGFLGS) -o $@ $(DBGOBJECTS)
+
+bf_cfb64_dbg.o: bf_cfb64.c blowfish.h bf_locl.h
+	$(CC) $(CDBGFLGS) -c -o $@ $<
+
+bf_enc_dbg.o: bf_enc.c blowfish.h bf_locl.h
+	$(CC) $(CDBGFLGS) -c -o $@ $<
+
+bf_skey_dbg.o: bf_skey.c blowfish.h bf_locl.h bf_pi.h
+	$(CC) $(CDBGFLGS) -c -o $@ $<
+
+cipher_dbg.o: cipher.c blowfish.h
+	$(CC) $(CDBGFLGS) -c -o $@ $<
+
 ##### CLEAN RULE #####
 clean:
-	rm *.o $(EXEC_FILE)
+	rm cipher_dbg; rm *.o $(EXEC_FILE);

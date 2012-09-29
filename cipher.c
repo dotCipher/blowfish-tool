@@ -194,18 +194,20 @@ int main(int argc, char *argv[]){
   // 1=Enable Debug Mode
   // 0=Disable Debug Mode
   int DEBUG = 1;
+  int i = 0; // General purpose index
   
   /* Initialize from and to buffers to OS pagesize */
   int page_size=getpagesize();
-  unsigned char *from = (unsigned char*)malloc(page_size);
-  unsigned char *to = (unsigned char*)malloc(page_size); 
+  unsigned char *from;
+  unsigned char *to; 
 
   /* Temp buffer to store user input (user password) */
 	const int PASS_MAX = 16;  
 	char *temp_pass;
-  char temp_buf[16];
-  char temp_buf_chk[16];
-  char rcs_vers[18] = "$Revision: 1.21 $";
+	char *password_final;
+  char temp_buf[17];
+  char temp_buf_chk[17];
+  char rcs_vers[18] = "$Revision: 1.22 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -238,6 +240,10 @@ int main(int argc, char *argv[]){
   
   /* fill the IV with zeros (or any other fixed data) */
   memset(iv, 0, 8);
+  
+  /* clear buffers */
+  memset(temp_buf,0,17);
+  memset(temp_buf_chk,0,17);
   
   /* Initialize and check params */
   stdin_infile = 0; stdout_outfile = 0;
@@ -326,7 +332,7 @@ int main(int argc, char *argv[]){
     outfile_name=(char*)malloc(strlen(argv[argc-1]));
     strcpy(outfile_name, argv[argc-1]);
 		strcpy(infile_name, argv[argc-2]);
-    
+/********************************* BREAKPOINT 1 ***********************************/
     // Check if stdout or stdin is used
     //  in replace of <infile> or <outfile>
     if(strcmp(infile_name,"-")==0){
@@ -339,18 +345,23 @@ int main(int argc, char *argv[]){
     // ----- <infile> Error Checking -----
     // (Only if <infile> is NOT set to STDIN)
     if(stdin_infile!=1){
-      if((fileExists(infile_name))!=1){
+    	i=fileExists(infile_name);
+      if(i==0){
         // <infile> DOES NOT exist
         fprintf(stderr,"Error Code 5: <infile> does not exist\n");
         free(infile_name);
         free(outfile_name);
         exit(5);
-      } else if((isDirectory(infile_name))!=1){
-        // <infile> DOES exist AND is a directory
-        fprintf(stderr,"Error Code 6: <infile> is a directory\n");
-        free(infile_name);
-        free(outfile_name);
-        exit(6);
+      } else if(i==2){
+      	// <infile> DOES exist
+      	// Is it a directory?
+      	if((isDirectory(infile_name))!=1){
+      		// <infile> DOES exist AND is a directory
+        	fprintf(stderr,"Error Code 6: <infile> is a directory\n");
+        	free(infile_name);
+       		free(outfile_name);
+      	  exit(6);
+      	}
       } else {
       	// <infile> DOES exist AND is NOT a directory
       }
@@ -359,7 +370,7 @@ int main(int argc, char *argv[]){
     // <infile> DOES exist and IS NOT a directory
     // OR <infile> is set to STDIN
     // with no i/o or permission errors
-    
+/******************************** BREAKPOINT 2 ***********************************/
     // ----- <outfile> Error Checking -----
     // (Only if <outfile> is NOT set to STDOUT)
     if(stdout_outfile!=1){
@@ -381,7 +392,7 @@ int main(int argc, char *argv[]){
     // Postconditions:
     // <outfile> IS NOT a directory AND exists (either made or overwrote)
     // OR <outfile> is set to STDOUT
-    
+/******************************** BREAKPOINT 3 ***********************************/
     // Check if infile and outfile are the same
     sf_code = isSameFiles(infile_name, outfile_name);
     if(sf_code==1){
@@ -496,7 +507,7 @@ int main(int argc, char *argv[]){
     //	<outfile> may exist, and if it does exist and is a
     //		symlink/hardlink, it points to a seperate regular file
     //		than <infile>, else it is not a link but a regular file.    
-    
+/******************************** BREAKPOINT 4 ***********************************/
     // DEBUGGING CODE //
     if(DEBUG==1){
       printf("infile_name=%s\n",infile_name);
@@ -508,15 +519,30 @@ int main(int argc, char *argv[]){
    	
    	// Check for password/safe inputs
    	passArgNum=0; // Re-using var for pass matching
+   	password_final=(char*)malloc(PASS_MAX);
+   	memset(password_final,0,PASS_MAX);
    	if(pass==1 && safe==0){
    		// temp_buf has password
-   		strcpy(temp_buf_chk,"\0");
+   		if(DEBUG==1){
+   			printf("BEFORE COPY\n");
+   			printf("password_final_len=%i\n",strlen(password_final));
+   			printf("temp_buf_len=%i\n",strlen(temp_buf));
+   		}
+   		// BP
+   		strcpy(password_final,temp_buf);
+   		if(DEBUG==1){
+   			printf("AFTER COPY\n");
+   			printf("password_final_len=%i\n",strlen(password_final));
+   			printf("temp_buf_len=%i\n",strlen(temp_buf));
+   		}
    	} else if(pass==0){
    		// Start password matching loop
    		while(passArgNum==0){
    			// Ask for first password
-   			strcpy(temp_buf,"\0");
-   			while(strcmp(temp_buf,"\0")!=0){
+   			if(DEBUG==1){
+   				printf("Checking for password..\n");
+   			}
+   			while(strlen(temp_buf)==0){
    				temp_pass = getpass("Enter Password: ");
    				if((unsigned)strlen(temp_pass) <= 16){
    					strcpy(temp_buf,temp_pass);
@@ -530,22 +556,33 @@ int main(int argc, char *argv[]){
    			if(safe==1){
      			// Ask for second password
    				temp_pass = getpass("Confirm Password: ");
-     			strcpy(temp_buf_chk,temp_pass);
-     			if(DEBUG==1){
-     				printf("The 2nd password is: %s\r\n",temp_buf_chk);
-     			}	
-     			// Do the passwords match?
-     			if(strcmp(temp_buf,temp_buf_chk)==0){
-     				// Yes! :)
-     				passArgNum=1;
-     			} else {
-     				// No :(
-     				passArgNum=0;
-     				fprintf(stderr,"Error: Passwords do not match, re-prompting...\n");
-     			}
+   				if((unsigned)strlen(temp_pass) <= 16){
+   					strcpy(temp_buf_chk,temp_pass);
+   					if(DEBUG==1){
+     					printf("The 2nd password is: %s\r\n",temp_buf_chk);
+     				}
+     				// Do the passwords match?
+     				if(strcmp(temp_buf,temp_buf_chk)==0){
+     					// Yes! :)
+     					passArgNum=1;
+     					strcpy(password_final,temp_buf);
+     				} else {
+     					// No :(
+     					passArgNum=0;
+     					fprintf(stderr,"Error: Passwords do not match, re-prompting...\n");
+     					memset(temp_buf,0,17);
+     					memset(temp_buf_chk,0,17);
+     				}
+   				} else {
+   					fprintf(stderr,"Error: Password cannot be longer than 16 characters\n");
+   					fprintf(stderr,"Error: Passwords do not match, re-prompting...\n");
+   					memset(temp_buf,0,17);
+     				memset(temp_buf_chk,0,17);
+   				}
      		} else {
      			// No safe statement given, no password to match
      			passArgNum=1;
+     			strcpy(password_final,temp_buf);
      		}
      	}
    	} else {
@@ -556,33 +593,62 @@ int main(int argc, char *argv[]){
    		exit(3);
    	}
     // temp_buf contains the right password for encryption or decryption
-    
+    if(DEBUG==1){
+    	printf("password_final= %s \n",password_final);
+    }
+    password_final[strlen(password_final)]='\0';
+/******************************** BREAKPOINT 5 ***********************************/
     /* call this function once to setup the cipher key */
-    BF_set_key(&key, PASS_MAX, (unsigned char *)temp_buf);
-    
+    BF_set_key(&key, PASS_MAX, (unsigned char *)password_final);
+/******************************** BREAKPOINT 6 ***********************************/
     /* Open up file descriptors */
     errno=0;
     // Open up infile fd
-    if((infile_fd=open(infile_name, O_RDONLY, S_IREAD))==-1){
+    infile_fd=open(infile_name, O_RDONLY, S_IREAD);
+    if(DEBUG==1){
+    	printf("infile_fd= %i \n",infile_fd);
+    }
+    if(infile_fd==-1){
     	perror("Error Code 8: On <infile> ");
     	free(infile_name);
     	free(outfile_name);
     	exit(8);
     }
+/******************************** BREAKPOINT 7 ***********************************/
     errno=0;
     // Open up outfile fd
-    if((outfile_fd=open(outfile_name, O_WRONLY | O_CREAT 
-    | O_TRUNC | O_APPEND, S_IWRITE))==-1){
+    outfile_fd=open(outfile_name, O_WRONLY | O_CREAT | O_TRUNC | O_APPEND, S_IWRITE);
+    if(DEBUG==1){
+    	printf("outfile_fd= %i \n",outfile_fd);
+    }
+    if(outfile_fd==-1){
     	perror("Error Code 8: On <outfile> ");
     	free(infile_name);
     	free(outfile_name);
     	exit(8); 
     }
-    
-    // Decryption Mode
+/******************************** BREAKPOINT 8 ***********************************/
+    // Initialize to and from and clear them
+    to = (unsigned char*)malloc(page_size);
+    from = (unsigned char*)malloc(page_size);
+    memset(to,0,page_size);
+    memset(from,0,page_size);
+/******************************** BREAKPOINT 9 ***********************************/
+    // PERMISSIONS TEST
+    chmod(infile_name,755);
+    chmod(outfile_name,755);
+/******************************** BREAKPOINT 10 ***********************************/
+    ///// [---------- DECRYPTION START ----------] /////
     if(deco==1 && enco==0){
+    	printf("Decrypting the file: %s \n",infile_name);
 			// Start reading the bytes of length page_size from infile
-    	while((bytes_read=read(infile_fd,from,page_size))!=0){
+			bytes_read = -1;
+    	do {
+    		bytes_read=read(infile_fd,from,page_size);
+/******************************** BREAKPOINT 11 ***********************************/
+    		if(DEBUG==1){
+    			printf("\nbytes_read=%i\n",bytes_read);
+    		}
     		if(bytes_read==-1){
     			// Maybe partial read encountered?
     			perror("Error Code 8: On <infile> ");
@@ -592,16 +658,19 @@ int main(int argc, char *argv[]){
     			close(outfile_fd);
     			exit(8);
     		} else if(bytes_read > 0){
-    			if(DEBUG==1){
-    				printf("\nbytes_read=%i\n",bytes_read);
-    				printf("from buffer=%s\n",from);
-    			}
+    			// Decrypt the buffer
+/******************************** BREAKPOINT 12 ***********************************/
+    			BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_DECRYPT);
     			// Was the read even with page_size?
     			if(bytes_read == page_size){
-    				// Encrypt the buffer
-    				BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_DECRYPT);
     				// Write buffer to file
-    				if((bytes_write=write(outfile_fd,to,page_size))==-1){
+/******************************** BREAKPOINT 13 ***********************************/
+    				bytes_write=write(outfile_fd,to,page_size);
+    				if(DEBUG==1){
+    					printf("bytes_read == page_size\n");
+    					printf("bytes_write=%i\n",bytes_write);
+    				}
+    				if(bytes_write==-1){
     					// Maybe partial write encountered?
     					perror("Error Code 8: On <outfile> ");
     					free(infile_name);
@@ -611,11 +680,15 @@ int main(int argc, char *argv[]){
     					exit(8);
     				}
     			} else if(bytes_read < page_size){
+/******************************** BREAKPOINT 14 ***********************************/
     				// Last iteration
-    				// Encrypt the buffer
-    				BF_cfb64_encrypt(from, to, bytes_read, &key, iv, &n, BF_DECRYPT);
     				// Write buffer to file
-    				if((bytes_write=write(outfile_fd,to,page_size))==-1){
+    				bytes_write=write(outfile_fd,to,bytes_read);
+    				if(DEBUG==1){
+    					printf("bytes_read < page_size\n");
+    					printf("bytes_write=%i\n",bytes_write);
+    				}
+    				if(bytes_write==-1){
     					// Maybe partial write encountered?
     					perror("Error Code 8: On <outfile> ");
     					free(infile_name);
@@ -625,13 +698,25 @@ int main(int argc, char *argv[]){
     					exit(8);
     				}
     			}
+    			// Clear buffers
+    			memset(to,0,page_size);
+    			memset(from,0,page_size);
     		} // else bytes_read == 0, terminate while
-    	}
-    
-    // Encryption Mode
+    	} while(bytes_read!=0);
+    printf("Saving to: %s \n",outfile_name);
+    ///// [---------- DECRYPTION END ----------] /////
+/******************************** BREAKPOINT 15 ***********************************/
+    ///// [---------- ENCRYPTION START ----------] /////
     } else if(deco==0 && enco==1){
+    	printf("Encrypting the file: %s \n",infile_name);
     	// Start reading the bytes of length page_size from infile
-    	while((bytes_read=read(infile_fd,from,page_size))!=0){
+    	bytes_read=-1;
+    	do {
+    		bytes_read=read(infile_fd,from,page_size);
+/******************************** BREAKPOINT 16 ***********************************/
+    		if(DEBUG==1){
+    			printf("\nbytes_read=%i\n",bytes_read);
+    		}
     		if(bytes_read==-1){
     			// Maybe partial read encountered?
     			perror("Error Code 8: On <infile> ");
@@ -641,16 +726,20 @@ int main(int argc, char *argv[]){
     			close(outfile_fd);
     			exit(8);
     		} else if(bytes_read > 0){
-    			if(DEBUG==1){
-    				printf("\nbytes_read=%i\n",bytes_read);
-    				printf("from buffer=%s\n",from);
-    			}
+/******************************** BREAKPOINT 17 ***********************************/
+    			// Encrypt the buffer
+    			BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_ENCRYPT);
+/******************************** BREAKPOINT 18 ***********************************/
     			// Was the read even with page_size?
     			if(bytes_read == page_size){
-    				// Encrypt the buffer
-    				BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_ENCRYPT);
+/******************************** BREAKPOINT 19 ***********************************/
     				// Write buffer to file
-    				if((bytes_write=write(outfile_fd,to,page_size))==-1){
+						bytes_write=write(outfile_fd,to,page_size);
+    				if(DEBUG==1){
+    					printf("bytes_read == page_size\n");
+    					printf("bytes_write=%i\n",bytes_write);
+    				}
+    				if(bytes_write==-1){
     					// Maybe partial write encountered?
     					perror("Error Code 8: On <outfile> ");
     					free(infile_name);
@@ -660,11 +749,15 @@ int main(int argc, char *argv[]){
     					exit(8);
     				}
     			} else if(bytes_read < page_size){
+/******************************** BREAKPOINT 20 ***********************************/
     				// Last iteration
-    				// Encrypt the buffer
-    				BF_cfb64_encrypt(from, to, bytes_read, &key, iv, &n, BF_ENCRYPT);
     				// Write buffer to file
-    				if((bytes_write=write(outfile_fd,to,page_size))==-1){
+    				bytes_write=write(outfile_fd,to,bytes_read);
+    				if(DEBUG==1){
+    					printf("bytes_read < page_size\n");
+    					printf("bytes_write=%i\n",bytes_write);
+    				}
+    				if(bytes_write==-1){
     					// Maybe partial write encountered?
     					perror("Error Code 8: On <outfile> ");
     					free(infile_name);
@@ -674,9 +767,14 @@ int main(int argc, char *argv[]){
     					exit(8);
     				}
     			}
+    			// Clear buffers
+    			memset(to,0,page_size);
+    			memset(from,0,page_size);
     		} // else bytes_read == 0, terminate while
-    	}	
-    	
+    	} while(bytes_read!=0);
+    printf("Saving to: %s \n",outfile_name);
+    ///// [---------- ENCRYPTION END ----------] /////
+/******************************** BREAKPOINT 21 ***********************************/
     // Both Encrypt/Decrypt OR Neither Encrypt/Decrypt
     } else {
       fprintf(stderr,"Error Code 3: Invalid execution\n");
@@ -688,6 +786,11 @@ int main(int argc, char *argv[]){
     }
   	free(infile_name);
   	free(outfile_name);
+  	free(to);
+  	free(from);
+  	free(password_final);
+  	close(infile_fd);
+  	close(outfile_fd);
   } else{
  		fprintf(stderr,"Error Code 3: Invalid execution\n");
     fprintf(stderr,"Must include <infile> and <outfile> parameters\n");
