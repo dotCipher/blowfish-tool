@@ -55,7 +55,8 @@ int isDirectory(char *path){
 /* Handles checking if the given path of a file
  * is pointing to a regular file.
  * (NOTE: Assumes file path exists and is
- * neither a directory or symlink)
+ * not a directory, if it is a symlink
+ * follow it to find a regular file.)
  * SUCCESS CODE(S):
  * 0 = Success (Path points to regular file)
  * ERROR CODE(S):
@@ -85,6 +86,7 @@ int isRegularFile(char *path){
 		free(buf);
 		return 4;
 	} else {
+	// FIX THIS TO WORK RIGHT FOR FOLLOWING SYMLINKS
 		free(buf);
 		return 5;
 	}
@@ -190,10 +192,9 @@ int isSameFiles(char *in_path, char *out_path){
  * 8 = File i/o OR permission error
  */
 int main(int argc, char *argv[]){
-  errno = 0;
   // 1=Enable Debug Mode
   // 0=Disable Debug Mode
-  int DEBUG = 1;
+  int DEBUG = 0;
   int i = 0; // General purpose index
   
   /* Initialize from and to buffers to OS pagesize */
@@ -207,7 +208,7 @@ int main(int argc, char *argv[]){
 	char *password_final;
   char temp_buf[17];
   char temp_buf_chk[17];
-  char rcs_vers[18] = "$Revision: 1.22 $";
+  char rcs_vers[18] = "$Revision: 1.23 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -216,8 +217,8 @@ int main(int argc, char *argv[]){
   int outfile_fd;
   char *infile_name;
   char *outfile_name;
-  int stdin_infile;
-  int stdout_outfile;
+  int stdin_bool;
+  int stdout_bool;
   int sf_code;
   int bytes_read;
   int bytes_write;
@@ -246,7 +247,7 @@ int main(int argc, char *argv[]){
   memset(temp_buf_chk,0,17);
   
   /* Initialize and check params */
-  stdin_infile = 0; stdout_outfile = 0;
+  stdin_bool = 0; stdout_bool = 0; errno = 0;
   deco = 0; enco = 0; vers = 0; help = 0; mmap = 0; pass = 0; safe = 0;
   while((opt = getopt(argc, argv, "devhmsp:")) != -1) {
     switch(opt){
@@ -332,19 +333,19 @@ int main(int argc, char *argv[]){
     outfile_name=(char*)malloc(strlen(argv[argc-1]));
     strcpy(outfile_name, argv[argc-1]);
 		strcpy(infile_name, argv[argc-2]);
-/********************************* BREAKPOINT 1 ***********************************/
+		
     // Check if stdout or stdin is used
     //  in replace of <infile> or <outfile>
     if(strcmp(infile_name,"-")==0){
-      stdin_infile=1;
+      stdin_bool=1;
     }
     if(strcmp(outfile_name,"-")==0){
-      stdout_outfile=1;
+      stdout_bool=1;
     }
     
     // ----- <infile> Error Checking -----
     // (Only if <infile> is NOT set to STDIN)
-    if(stdin_infile!=1){
+    if(stdin_bool!=1){
     	i=fileExists(infile_name);
       if(i==0){
         // <infile> DOES NOT exist
@@ -370,10 +371,10 @@ int main(int argc, char *argv[]){
     // <infile> DOES exist and IS NOT a directory
     // OR <infile> is set to STDIN
     // with no i/o or permission errors
-/******************************** BREAKPOINT 2 ***********************************/
+    
     // ----- <outfile> Error Checking -----
     // (Only if <outfile> is NOT set to STDOUT)
-    if(stdout_outfile!=1){
+    if(stdout_bool!=1){
     	if((fileExists(outfile_name))!=1){
     		// <outfile> DOES NOT exist
     		// do nothing - possible error caught
@@ -392,113 +393,119 @@ int main(int argc, char *argv[]){
     // Postconditions:
     // <outfile> IS NOT a directory AND exists (either made or overwrote)
     // OR <outfile> is set to STDOUT
-/******************************** BREAKPOINT 3 ***********************************/
-    // Check if infile and outfile are the same
-    sf_code = isSameFiles(infile_name, outfile_name);
-    if(sf_code==1){
-    	// Paths are the same references
-    	fprintf(stderr,"Error Code 7: <infile> and <outfile> are the same path\n");
-    	free(infile_name);
-    	free(outfile_name);
-    	exit(7);
-    } else if(sf_code==2){
-    	// Hardlinks to same file
-    	fprintf(stderr,"Error Code 7: <infile> and <outfile> are hardlinks to same file\n");
-    	free(infile_name);
-    	free(outfile_name);
-    	exit(7);
-    } else if(sf_code==3){
-    	// In/Out symlinks point to same file
-    	fprintf(stderr,"Error Code 7: <infile> and <outfile> are symlinks to same file\n");
-    	free(infile_name);
-    	free(outfile_name);
-    	exit(7);
-    } else if(sf_code==4){
-    	// Input symlink points to outfile
-    	fprintf(stderr,"Error Code 7: <infile> symlink points to <outfile>\n");
-    	free(infile_name);
-    	free(outfile_name);
-    	exit(7);
-    } else if(sf_code==5){
-    	// Output symlink points to infile
-    	fprintf(stderr,"Error Code 7: <outfile> symlink points to <infile>\n");
-    	free(infile_name);
-    	free(outfile_name);
-    	exit(7);
-    } else{
-    	// No error, continue on
+    
+    if(stdin_bool==0 && stdout_bool==0){
+    	// Check if infile and outfile are the same
+    	sf_code = isSameFiles(infile_name, outfile_name);
+    	if(sf_code==1){
+    		// Paths are the same references
+    		fprintf(stderr,"Error Code 7: <infile> and <outfile> are the same path\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		exit(7);
+    	} else if(sf_code==2){
+    		// Hardlinks to same file
+    		fprintf(stderr,"Error Code 7: <infile> and <outfile> are hardlinks to same file\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		exit(7);
+   	 } else if(sf_code==3){
+ 	   		// In/Out symlinks point to same file
+ 	   		fprintf(stderr,"Error Code 7: <infile> and <outfile> are symlinks to same file\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		exit(7);
+    	} else if(sf_code==4){
+    		// Input symlink points to outfile
+    		fprintf(stderr,"Error Code 7: <infile> symlink points to <outfile>\n");
+    		free(infile_name);
+    		free(outfile_name);
+    		exit(7);
+    	} else if(sf_code==5){
+    		// Output symlink points to infile
+    		fprintf(stderr,"Error Code 7: <outfile> symlink points to <infile>\n");
+    		free(infile_name);
+   	 		free(outfile_name);
+  	  	exit(7);
+  	  } else{
+  	  	// No error, continue on
+ 	  	}
     }
     
     // Check if <infile> or <outfile> is a char/block special device
+    if(stdin_bool!=1){
     switch(isRegularFile(infile_name)){
-    	case 0:
-    		// Regular File
-    		break;
-    	case 1:
-    		// Character Device
-    		fprintf(stderr,"Error Code 7: <infile> is a character device\n");
-    		free(infile_name);
-    		free(outfile_name);
-    		exit(7);
-    	case 2:
-    		// Block Device
-    		fprintf(stderr,"Error Code 7: <infile> is a block device\n");
-    		free(infile_name);
-    		free(outfile_name);
-    		exit(7);
-    	case 3:
-    		// FIFO - Named Pipe
-    		fprintf(stderr,"Error Code 7: <infile> is a named pipe\n");
-    		free(infile_name);
-    		free(outfile_name);
-    		exit(7);
-    	case 4:
-    		// Socket
-    		fprintf(stderr,"Error Code 7: <infile> is a socket\n");
-    		free(infile_name);
-    		free(outfile_name);
-    		exit(7);
-    	default:
-    		// Other (symlink or directory, unreachable with preconditions)
-    		fprintf(stderr,"Error Code 7: Unknown file <infile>\n");
-    		free(infile_name);
-    		free(outfile_name);
-    		exit(7);
+    		case 0:
+    			// Regular File
+    			break;
+    		case 1:
+    			// Character Device
+    			fprintf(stderr,"Error Code 7: <infile> is a character device\n");
+    			free(infile_name);
+    			free(outfile_name);
+    			exit(7);
+    		case 2:
+    			// Block Device
+    			fprintf(stderr,"Error Code 7: <infile> is a block device\n");
+    			free(infile_name);
+    			free(outfile_name);
+    			exit(7);
+    		case 3:
+    			// FIFO - Named Pipe
+    			fprintf(stderr,"Error Code 7: <infile> is a named pipe\n");
+    			free(infile_name);
+    			free(outfile_name);
+    			exit(7);
+    		case 4:
+    			// Socket
+    			fprintf(stderr,"Error Code 7: <infile> is a socket\n");
+    			free(infile_name);
+    			free(outfile_name);
+    			exit(7);
+    		default:
+    			// Other (symlink or directory, unreachable with preconditions)
+    			fprintf(stderr,"Error Code 7: Unknown file <infile>\n");
+    			free(infile_name);
+    			free(outfile_name);
+    			exit(7);
+    	}
     }
-    switch(isRegularFile(outfile_name)){
-    	case 0:
-    		// Regular File
-    		break;
-    	case 1:
-    		// Character Device
-    		fprintf(stderr,"Error Code 7: <outfile> is a character device\n");
-    		free(infile_name);
-    		free(outfile_name);
-    		exit(7);
-    	case 2:
-    		// Block Device
-    		fprintf(stderr,"Error Code 7: <outfile> is a block device\n");
-    		free(infile_name);
-    		free(outfile_name);
-    		exit(7);
-    	case 3:
-    		// FIFO - Named Pipe
-    		fprintf(stderr,"Error Code 7: <outfile> is a named pipe\n");
-    		free(infile_name);
-    		free(outfile_name);
-    		exit(7);
-    	case 4:
-    		// Socket
-    		fprintf(stderr,"Error Code 7: <outfile> is a socket\n");
-    		free(infile_name);
-    		free(outfile_name);
-    		exit(7);
-    	default:
-    		// Other (symlink or directory, unreachable with preconditions)
-    		fprintf(stderr,"Error Code 7: Unknown file <outfile>\n");
-    		free(infile_name);
-    		free(outfile_name);
-    		exit(7);
+    if(stdout_bool!=1){
+    	switch(isRegularFile(outfile_name)){
+    		case 0:
+    			// Regular File
+    			break;
+    		case 1:
+    			// Character Device
+    			fprintf(stderr,"Error Code 7: <outfile> is a character device\n");
+    			free(infile_name);
+    			free(outfile_name);
+    			exit(7);
+    		case 2:
+    			// Block Device
+    			fprintf(stderr,"Error Code 7: <outfile> is a block device\n");
+    			free(infile_name);
+    			free(outfile_name);
+    			exit(7);
+    		case 3:
+    			// FIFO - Named Pipe
+    			fprintf(stderr,"Error Code 7: <outfile> is a named pipe\n");
+    			free(infile_name);
+    			free(outfile_name);
+    			exit(7);
+    		case 4:
+    			// Socket
+    			fprintf(stderr,"Error Code 7: <outfile> is a socket\n");
+    			free(infile_name);
+    			free(outfile_name);
+    			exit(7);
+    		default:
+    			// Other (symlink or directory, unreachable with preconditions)
+    			fprintf(stderr,"Error Code 7: Unknown file <outfile>\n");
+    			free(infile_name);
+    			free(outfile_name);
+    			exit(7);
+    	}
     }
     //	Post-conditions: 
     //	<infile> exists, it is NOT a directory, and if it is a 
@@ -507,13 +514,13 @@ int main(int argc, char *argv[]){
     //	<outfile> may exist, and if it does exist and is a
     //		symlink/hardlink, it points to a seperate regular file
     //		than <infile>, else it is not a link but a regular file.    
-/******************************** BREAKPOINT 4 ***********************************/
+    
     // DEBUGGING CODE //
     if(DEBUG==1){
       printf("infile_name=%s\n",infile_name);
       printf("outfile_name=%s\n",outfile_name);
-      printf("read from stdin=%i\n",stdin_infile);
-      printf("print to stdout=%i\n",stdout_outfile);
+      printf("read from stdin=%i\n",stdin_bool);
+      printf("print to stdout=%i\n",stdout_bool);
     }
     ////////////////////
    	
@@ -528,7 +535,6 @@ int main(int argc, char *argv[]){
    			printf("password_final_len=%i\n",strlen(password_final));
    			printf("temp_buf_len=%i\n",strlen(temp_buf));
    		}
-   		// BP
    		strcpy(password_final,temp_buf);
    		if(DEBUG==1){
    			printf("AFTER COPY\n");
@@ -597,10 +603,10 @@ int main(int argc, char *argv[]){
     	printf("password_final= %s \n",password_final);
     }
     password_final[strlen(password_final)]='\0';
-/******************************** BREAKPOINT 5 ***********************************/
+    
     /* call this function once to setup the cipher key */
     BF_set_key(&key, PASS_MAX, (unsigned char *)password_final);
-/******************************** BREAKPOINT 6 ***********************************/
+    
     /* Open up file descriptors */
     errno=0;
     // Open up infile fd
@@ -614,7 +620,7 @@ int main(int argc, char *argv[]){
     	free(outfile_name);
     	exit(8);
     }
-/******************************** BREAKPOINT 7 ***********************************/
+    
     errno=0;
     // Open up outfile fd
     outfile_fd=open(outfile_name, O_WRONLY | O_CREAT | O_TRUNC | O_APPEND, S_IWRITE);
@@ -627,25 +633,30 @@ int main(int argc, char *argv[]){
     	free(outfile_name);
     	exit(8); 
     }
-/******************************** BREAKPOINT 8 ***********************************/
+    
     // Initialize to and from and clear them
     to = (unsigned char*)malloc(page_size);
     from = (unsigned char*)malloc(page_size);
     memset(to,0,page_size);
     memset(from,0,page_size);
-/******************************** BREAKPOINT 9 ***********************************/
-    // PERMISSIONS TEST
-    chmod(infile_name,755);
-    chmod(outfile_name,755);
-/******************************** BREAKPOINT 10 ***********************************/
+    
     ///// [---------- DECRYPTION START ----------] /////
     if(deco==1 && enco==0){
-    	printf("Decrypting the file: %s \n",infile_name);
+    	if(stdout_bool==0){
+    		if(stdin_bool==1){
+    			printf("Decrypting from STDIN...\n");
+    		} else {
+    			printf("Decrypting the file: %s \n",infile_name);
+    		}
+    	}
 			// Start reading the bytes of length page_size from infile
 			bytes_read = -1;
-    	do {
-    		bytes_read=read(infile_fd,from,page_size);
-/******************************** BREAKPOINT 11 ***********************************/
+    	while(bytes_read!=0){
+    		if(stdin_bool==1){
+    			bytes_read=read(STDIN_FILENO,from,page_size);
+    		} else {
+    			bytes_read=read(infile_fd,from,page_size);
+    		}
     		if(DEBUG==1){
     			printf("\nbytes_read=%i\n",bytes_read);
     		}
@@ -659,13 +670,15 @@ int main(int argc, char *argv[]){
     			exit(8);
     		} else if(bytes_read > 0){
     			// Decrypt the buffer
-/******************************** BREAKPOINT 12 ***********************************/
     			BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_DECRYPT);
     			// Was the read even with page_size?
     			if(bytes_read == page_size){
-    				// Write buffer to file
-/******************************** BREAKPOINT 13 ***********************************/
-    				bytes_write=write(outfile_fd,to,page_size);
+    				// Write buffer
+    				if(stdout_bool==1){
+    					bytes_write=write(STDOUT_FILENO,to,page_size);
+    				} else {
+    					bytes_write=write(outfile_fd,to,page_size);
+    				}
     				if(DEBUG==1){
     					printf("bytes_read == page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
@@ -680,10 +693,13 @@ int main(int argc, char *argv[]){
     					exit(8);
     				}
     			} else if(bytes_read < page_size){
-/******************************** BREAKPOINT 14 ***********************************/
     				// Last iteration
-    				// Write buffer to file
-    				bytes_write=write(outfile_fd,to,bytes_read);
+    				// Write buffer
+    				if(stdout_bool==1){
+    					bytes_write=write(STDOUT_FILENO,to,bytes_read);
+    				} else {
+    					bytes_write=write(outfile_fd,to,bytes_read);
+    				}
     				if(DEBUG==1){
     					printf("bytes_read < page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
@@ -702,18 +718,29 @@ int main(int argc, char *argv[]){
     			memset(to,0,page_size);
     			memset(from,0,page_size);
     		} // else bytes_read == 0, terminate while
-    	} while(bytes_read!=0);
-    printf("Saving to: %s \n",outfile_name);
+    	}
+    if(stdout_bool==0){
+    	printf("Saving to: %s \n",outfile_name);
+    }
     ///// [---------- DECRYPTION END ----------] /////
-/******************************** BREAKPOINT 15 ***********************************/
+    
     ///// [---------- ENCRYPTION START ----------] /////
     } else if(deco==0 && enco==1){
-    	printf("Encrypting the file: %s \n",infile_name);
+    	if(stdout_bool==0){
+    		if(stdin_bool==1){
+    			printf("Encrypting from STDIN...\n");
+    		} else {
+    			printf("Encrypting the file: %s \n",infile_name);
+    		}
+    	}
     	// Start reading the bytes of length page_size from infile
     	bytes_read=-1;
-    	do {
-    		bytes_read=read(infile_fd,from,page_size);
-/******************************** BREAKPOINT 16 ***********************************/
+    	while(bytes_read!=0){
+    		if(stdin_bool==1){
+    			bytes_read=read(STDIN_FILENO,from,page_size);
+    		} else {
+    			bytes_read=read(infile_fd,from,page_size);
+    		}
     		if(DEBUG==1){
     			printf("\nbytes_read=%i\n",bytes_read);
     		}
@@ -726,15 +753,16 @@ int main(int argc, char *argv[]){
     			close(outfile_fd);
     			exit(8);
     		} else if(bytes_read > 0){
-/******************************** BREAKPOINT 17 ***********************************/
     			// Encrypt the buffer
     			BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_ENCRYPT);
-/******************************** BREAKPOINT 18 ***********************************/
     			// Was the read even with page_size?
     			if(bytes_read == page_size){
-/******************************** BREAKPOINT 19 ***********************************/
-    				// Write buffer to file
-						bytes_write=write(outfile_fd,to,page_size);
+    				// Write buffer
+    				if(stdout_bool==1){
+    					bytes_write=write(STDOUT_FILENO,to,page_size);
+    				} else {
+							bytes_write=write(outfile_fd,to,page_size);
+						}
     				if(DEBUG==1){
     					printf("bytes_read == page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
@@ -749,10 +777,13 @@ int main(int argc, char *argv[]){
     					exit(8);
     				}
     			} else if(bytes_read < page_size){
-/******************************** BREAKPOINT 20 ***********************************/
     				// Last iteration
     				// Write buffer to file
-    				bytes_write=write(outfile_fd,to,bytes_read);
+    				if(stdout_bool==1){
+    					bytes_write=write(STDOUT_FILENO,to,bytes_read);
+    				} else {
+							bytes_write=write(outfile_fd,to,bytes_read);
+						}
     				if(DEBUG==1){
     					printf("bytes_read < page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
@@ -771,10 +802,12 @@ int main(int argc, char *argv[]){
     			memset(to,0,page_size);
     			memset(from,0,page_size);
     		} // else bytes_read == 0, terminate while
-    	} while(bytes_read!=0);
-    printf("Saving to: %s \n",outfile_name);
+    	}
+    if(stdout_bool==0){
+    	printf("Saving to: %s \n",outfile_name);
+    }
     ///// [---------- ENCRYPTION END ----------] /////
-/******************************** BREAKPOINT 21 ***********************************/
+    
     // Both Encrypt/Decrypt OR Neither Encrypt/Decrypt
     } else {
       fprintf(stderr,"Error Code 3: Invalid execution\n");
