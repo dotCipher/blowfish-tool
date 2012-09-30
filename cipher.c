@@ -54,8 +54,7 @@ int isDirectory(char *path){
 
 /* Handles checking if the given path of a file
  * is pointing to a regular file.
- * (NOTE: Assumes file path exists and is
- * not a directory, if it is a symlink
+ * (NOTE: If path is a symlink
  * follow it to find a regular file.)
  * SUCCESS CODE(S):
  * 0 = Success (Path points to regular file)
@@ -64,7 +63,8 @@ int isDirectory(char *path){
  * 2 = Path is a block device
  * 3 = Path is a named pipe
  * 4 = Path is a socket
- * 5 = Unknown (symlink or directory)
+ * 5 = Path is a directory
+ * 6 = Path is a symlink
  */
 int isRegularFile(char *path){
 	struct stat *buf;
@@ -85,10 +85,12 @@ int isRegularFile(char *path){
 	} else if(buf->st_mode & S_IFSOCK){
 		free(buf);
 		return 4;
-	} else {
-	// FIX THIS TO WORK RIGHT FOR FOLLOWING SYMLINKS
+	} else if(buf->st_mode & S_IFDIR){
 		free(buf);
 		return 5;
+	} else{
+		free(buf);
+		return 6;
 	}
 }
 
@@ -208,7 +210,7 @@ int main(int argc, char *argv[]){
 	char *password_final;
   char temp_buf[17];
   char temp_buf_chk[17];
-  char rcs_vers[18] = "$Revision: 1.23 $";
+  char rcs_vers[18] = "$Revision: 1.24 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -434,7 +436,7 @@ int main(int argc, char *argv[]){
     
     // Check if <infile> or <outfile> is a char/block special device
     if(stdin_bool!=1){
-    switch(isRegularFile(infile_name)){
+   		switch(isRegularFile(infile_name)){
     		case 0:
     			// Regular File
     			break;
@@ -462,9 +464,9 @@ int main(int argc, char *argv[]){
     			free(infile_name);
     			free(outfile_name);
     			exit(7);
-    		default:
-    			// Other (symlink or directory, unreachable with preconditions)
-    			fprintf(stderr,"Error Code 7: Unknown file <infile>\n");
+    		case 5:
+    			// Directory
+    			fprintf(stderr,"Error Code 7: <infile> is a directory\n");
     			free(infile_name);
     			free(outfile_name);
     			exit(7);
@@ -499,9 +501,9 @@ int main(int argc, char *argv[]){
     			free(infile_name);
     			free(outfile_name);
     			exit(7);
-    		default:
-    			// Other (symlink or directory, unreachable with preconditions)
-    			fprintf(stderr,"Error Code 7: Unknown file <outfile>\n");
+    		case 5:
+    			// Directory
+    			fprintf(stderr,"Error Code 7: <infile> is a directory\n");
     			free(infile_name);
     			free(outfile_name);
     			exit(7);
@@ -608,30 +610,39 @@ int main(int argc, char *argv[]){
     BF_set_key(&key, PASS_MAX, (unsigned char *)password_final);
     
     /* Open up file descriptors */
-    errno=0;
     // Open up infile fd
-    infile_fd=open(infile_name, O_RDONLY, S_IREAD);
-    if(DEBUG==1){
-    	printf("infile_fd= %i \n",infile_fd);
-    }
-    if(infile_fd==-1){
-    	perror("Error Code 8: On <infile> ");
-    	free(infile_name);
-    	free(outfile_name);
-    	exit(8);
+    if(stdin_bool==0){
+    	errno=0;
+    	infile_fd=open(infile_name, O_RDONLY, S_IREAD);
+    	if(DEBUG==1){
+    		printf("infile_fd= %i \n",infile_fd);
+   	 }
+    	if(infile_fd==-1){
+    		perror("Error Code 8: On <infile> ");
+    		free(infile_name);
+    		free(outfile_name);
+    		exit(8);
+    	}
+    } else {
+    	infile_fd=STDIN_FILENO;
     }
     
-    errno=0;
+    
     // Open up outfile fd
-    outfile_fd=open(outfile_name, O_WRONLY | O_CREAT | O_TRUNC | O_APPEND, S_IWRITE);
-    if(DEBUG==1){
-    	printf("outfile_fd= %i \n",outfile_fd);
-    }
-    if(outfile_fd==-1){
-    	perror("Error Code 8: On <outfile> ");
-    	free(infile_name);
-    	free(outfile_name);
-    	exit(8); 
+    if(stdout_bool==0){
+    	errno=0;
+    	outfile_fd=open(outfile_name, O_WRONLY | O_CREAT | O_TRUNC | O_APPEND, S_IWRITE);
+    	if(DEBUG==1){
+    		printf("outfile_fd= %i \n",outfile_fd);
+    	}
+    	if(outfile_fd==-1){
+    		perror("Error Code 8: On <outfile> ");
+    		free(infile_name);
+    		free(outfile_name);
+    		exit(8); 
+    	}
+    } else {
+    	outfile_fd=STDOUT_FILENO;
     }
     
     // Initialize to and from and clear them
@@ -652,11 +663,7 @@ int main(int argc, char *argv[]){
 			// Start reading the bytes of length page_size from infile
 			bytes_read = -1;
     	while(bytes_read!=0){
-    		if(stdin_bool==1){
-    			bytes_read=read(STDIN_FILENO,from,page_size);
-    		} else {
-    			bytes_read=read(infile_fd,from,page_size);
-    		}
+    		bytes_read=read(infile_fd,from,page_size);
     		if(DEBUG==1){
     			printf("\nbytes_read=%i\n",bytes_read);
     		}
@@ -674,11 +681,7 @@ int main(int argc, char *argv[]){
     			// Was the read even with page_size?
     			if(bytes_read == page_size){
     				// Write buffer
-    				if(stdout_bool==1){
-    					bytes_write=write(STDOUT_FILENO,to,page_size);
-    				} else {
-    					bytes_write=write(outfile_fd,to,page_size);
-    				}
+    				bytes_write=write(outfile_fd,to,page_size);
     				if(DEBUG==1){
     					printf("bytes_read == page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
@@ -695,11 +698,7 @@ int main(int argc, char *argv[]){
     			} else if(bytes_read < page_size){
     				// Last iteration
     				// Write buffer
-    				if(stdout_bool==1){
-    					bytes_write=write(STDOUT_FILENO,to,bytes_read);
-    				} else {
-    					bytes_write=write(outfile_fd,to,bytes_read);
-    				}
+    				bytes_write=write(outfile_fd,to,bytes_read);
     				if(DEBUG==1){
     					printf("bytes_read < page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
@@ -736,11 +735,7 @@ int main(int argc, char *argv[]){
     	// Start reading the bytes of length page_size from infile
     	bytes_read=-1;
     	while(bytes_read!=0){
-    		if(stdin_bool==1){
-    			bytes_read=read(STDIN_FILENO,from,page_size);
-    		} else {
-    			bytes_read=read(infile_fd,from,page_size);
-    		}
+    		bytes_read=read(infile_fd,from,page_size);
     		if(DEBUG==1){
     			printf("\nbytes_read=%i\n",bytes_read);
     		}
@@ -758,11 +753,7 @@ int main(int argc, char *argv[]){
     			// Was the read even with page_size?
     			if(bytes_read == page_size){
     				// Write buffer
-    				if(stdout_bool==1){
-    					bytes_write=write(STDOUT_FILENO,to,page_size);
-    				} else {
-							bytes_write=write(outfile_fd,to,page_size);
-						}
+						bytes_write=write(outfile_fd,to,page_size);
     				if(DEBUG==1){
     					printf("bytes_read == page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
@@ -779,11 +770,7 @@ int main(int argc, char *argv[]){
     			} else if(bytes_read < page_size){
     				// Last iteration
     				// Write buffer to file
-    				if(stdout_bool==1){
-    					bytes_write=write(STDOUT_FILENO,to,bytes_read);
-    				} else {
-							bytes_write=write(outfile_fd,to,bytes_read);
-						}
+						bytes_write=write(outfile_fd,to,bytes_read);
     				if(DEBUG==1){
     					printf("bytes_read < page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
