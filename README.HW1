@@ -1,33 +1,17 @@
-Blowfish Cipher Tool by Cody Moore
-Usage: ./cipher [OPTIONS] [-p PASSWORD] <infile> <outfile>
-Options are as follows:
-   -p [PASS] :  Use [PASS] as password (skip prompt)
-   -d        :  Decrypt <infile> to <outfile>
-   -e        :  Encrypt <infile> to <outfile>
-   -v        :  Print version number
-   -h        :  Show help screen
-   -m        :  Enable memory mapping - mmap()
-   -s        :  Safe Mode (prompt for password twice)
-
-
-
-You must include a README file with this and any assignment.  The README
-file should describe what you did, what approach you took, results of any
-measurements you made, which files are included in your submission and what
-they are for, etc.  Feel free to include any other information you think is
-helpful to us in this README; it can only help your grade.
-
-
 ===== Blowfish Cipher Tool =====
 Author: Cody Moore
 
 This program allows the user to either encrypt and decrypt any given file or string using the blowfish encryption algorithm.  A password must be provided for either use that is used for the key.
+
+
 
 == Description ==
 
 The Blowfish Cipher Tool was made for the purpose of either encrypting or decrypting a file or string.  It currently uses the blowfish encryption algorithm that conforms to Netscapes SSL, developed by Eric Young (C) 1995-1997. The blowfish encryption algorithm was first designed by Bruce Schneier in 1993.
 
 This program includes a few helper methods for error checking on conditions such as improper file permissions and improper file types given as input. The approach taken to maximize robustness of the program while minimizing possible bugs was to double check both the parameters given, for improper input, as well as catch common mistype mistakes or file i/o errors.
+
+
 
 == Installation ==
 
@@ -47,144 +31,179 @@ then,
 		make
 
 
-== Frequently Asked Questions ==
 
-= A question that someone might have =
+== Usage ==
 
-An answer to that question.
+./cipher [OPTIONS] [-p PASSWORD] <infile> <outfile>
 
-= What about foo bar? =
+Options are as follows:
+   -p [PASS] :  Use [PASS] as password (skip prompt)
+   -d        :  Decrypt <infile> to <outfile>
+   -e        :  Encrypt <infile> to <outfile>
+   -v        :  Print version number
+   -h        :  Show help screen
+   -m        :  Enable memory mapping - mmap()
+   -s        :  Safe Mode (prompt for password twice)
 
-Answer to foo bar dilemma.
+
 
 == Changelog ==
 
 ----------------------------
-revision 1.24	locked by: root;
-date: 2012/09/30 07:53:35;  author: root;  state: Exp;  lines: +50 -63
+revision 1.26
+date: 2012/09/30 21:36:47;
+lines: +2 -2
+
+Removed debug flag
+----------------------------
+revision 1.25
+date: 2012/09/30 21:34:43;
+lines: +261 -96
+
+Added mmap() - unfinished
+----------------------------
+revision 1.24
+date: 2012/09/30 07:53:35;
+lines: +50 -63
+
 Finished STDIN and STDOUT
 ----------------------------
 revision 1.23
-date: 2012/09/30 04:16:09;  author: root;  state: Exp;  lines: +180 -147
+date: 2012/09/30 04:16:09;
+lines: +180 -147
+
 Doing stdin to stdout
 ----------------------------
 revision 1.22
-date: 2012/09/29 21:25:45;  author: root;  state: Exp;  lines: +170 -67
+date: 2012/09/29 21:25:45;
+lines: +170 -67
+
 Fixed memory issues with key, finished encrypt/decrypt
 ----------------------------
 revision 1.21
-date: 2012/09/28 22:43:56;  author: root;  state: Exp;  lines: +88 -76
+date: 2012/09/28 22:43:56;
+lines: +88 -76
+
 Added both decryption and encryption modes
 cleaned up code
 ----------------------------
 revision 1.20
-date: 2012/09/26 21:23:27;  author: root;  state: Exp;  lines: +107 -33
+date: 2012/09/26 21:23:27;
+lines: +107 -33
+
 Added encryption part
 ----------------------------
 revision 1.19
-date: 2012/09/26 17:38:12;  author: cjmoore;  state: Exp;  lines: +17 -17
+date: 2012/09/26 17:38:12;
+lines: +17 -17
+
 More stuff
 ----------------------------
 revision 1.18
-date: 2012/09/25 19:37:26;  author: cjmoore;  state: Exp;  lines: +86 -36
+date: 2012/09/25 19:37:26;
+lines: +86 -36
+
 Added password checking
 ----------------------------
 revision 1.17
-date: 2012/09/23 21:40:42;  author: cjmoore;  state: Exp;  lines: +14 -21
+date: 2012/09/23 21:40:42;
+lines: +14 -21
+
 Fixed formatting
 ----------------------------
 revision 1.16
-date: 2012/09/23 21:13:08;  author: cjmoore;  state: Exp;  lines: +69 -63
+date: 2012/09/23 21:13:08;
+lines: +69 -63
+
 Debugged
 ----------------------------
 revision 1.15
-date: 2012/09/22 23:45:23;  author: cjmoore;  state: Exp;  lines: +144 -17
+date: 2012/09/22 23:45:23;
+lines: +144 -17
+
 Finished all file i/o checking
 ----------------------------
 revision 1.14
-date: 2012/09/19 18:47:37;  author: cjmoore;  state: Exp;  lines: +9 -10
+date: 2012/09/19 18:47:37;
+lines: +9 -10
+
 More work on file i/o error checking
 ----------------------------
 revision 1.13
-date: 2012/09/19 18:22:13;  author: cjmoore;  state: Exp;  lines: +77 -9
+date: 2012/09/19 18:22:13;
+lines: +77 -9
+
 Added more error checking with permissions and file i/o (unfinished)
 ----------------------------
 revision 1.12
-date: 2012/09/19 05:41:22;  author: cjmoore;  state: Exp;  lines: +54 -13
+date: 2012/09/19 05:41:22;
+lines: +54 -13
+
 Completed same file error checking
 ----------------------------
 revision 1.11
-date: 2012/09/19 04:26:00;  author: cjmoore;  state: Exp;  lines: +10 -4
+date: 2012/09/19 04:26:00;
+lines: +10 -4
+
 Versioning parsing completed
 ----------------------------
 revision 1.10
-date: 2012/09/19 03:57:00;  author: cjmoore;  state: Exp;  lines: +3 -3
+date: 2012/09/19 03:57:00;
+lines: +3 -3
+
 Adding parsing for version
 ----------------------------
 revision 1.9
-date: 2012/09/19 03:32:11;  author: cjmoore;  state: Exp;  lines: +61 -37
+date: 2012/09/19 03:32:11;
+lines: +61 -37
+
 Fixed syntax of error checking for same files
 ----------------------------
 revision 1.8
-date: 2012/09/19 02:33:10;  author: cjmoore;  state: Exp;  lines: +82 -7
+date: 2012/09/19 02:33:10;
+lines: +82 -7
+
 Added error checking for same files
 ----------------------------
 revision 1.7
-date: 2012/09/18 19:27:21;  author: cjmoore;  state: Exp;  lines: +34 -4
+date: 2012/09/18 19:27:21;
+lines: +34 -4
+
 Even more error checking
 ----------------------------
 revision 1.6
-date: 2012/09/18 17:39:44;  author: cjmoore;  state: Exp;  lines: +57 -7
+date: 2012/09/18 17:39:44;
+lines: +57 -7
+
 Included more error checking for input and output files
 ----------------------------
 revision 1.5
-date: 2012/09/18 16:08:43;  author: cjmoore;  state: Exp;  lines: +45 -8
+date: 2012/09/18 16:08:43;
+lines: +45 -8
+
 Added reading infile name and outfile name
 ----------------------------
 revision 1.4
-date: 2012/09/17 21:39:13;  author: cjmoore;  state: Exp;  lines: +3 -3
+date: 2012/09/17 21:39:13;
+lines: +3 -3
+
 Added functionality
 ----------------------------
 revision 1.3
-date: 2012/09/17 19:51:52;  author: cjmoore;  state: Exp;  lines: +32 -23
-Added new error checking .
+date: 2012/09/17 19:51:52;
+lines: +32 -23
+
+Added new error checking
 ----------------------------
 revision 1.2
-date: 2012/09/17 02:10:05;  author: cjmoore;  state: Exp;  lines: +10 -2
+date: 2012/09/17 02:10:05;
+lines: +10 -2
+
 Add help menu.
 ----------------------------
 revision 1.1
-date: 2012/09/16 21:52:47;  author: cjmoore;  state: Exp;
+date: 2012/09/16 21:52:47;
+
 Initial revision
+----------------------------
 
-
-== Arbitrary section ==
-
-You may provide arbitrary sections, in the same format as the ones above.  This may be of use for extremely complicated
-plugins where more information needs to be conveyed that doesn't fit into the categories of "description" or
-"installation."  Arbitrary sections will be shown below the built-in sections outlined above.
-
-== A brief Markdown Example ==
-
-Ordered list:
-
-1. Some feature
-1. Another feature
-1. Something else about the plugin
-
-Unordered list:
-
-* something
-* something else
-* third thing
-
-Here's a link to [WordPress](http://wordpress.org/ "Your favorite software") and one to [Markdown's Syntax Documentation][markdown syntax].
-Titles are optional, naturally.
-
-[markdown syntax]: http://daringfireball.net/projects/markdown/syntax
-            "Markdown is what the parser uses to process much of the readme file"
-
-Markdown uses email style notation for blockquotes and I've been told:
-> Asterisks for *emphasis*. Double it up  for **strong**.
-
-`<?php code(); // goes in backticks ?>`
