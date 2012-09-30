@@ -69,4 +69,4 @@ cipher_dbg.o: cipher.c blowfish.h
 
 ##### CLEAN RULE #####
 clean:
-	rm cipher_dbg; rm *.o $(EXEC_FILE);
+	rm -f cipher_dbg *.o $(EXEC_FILE) 2> /dev/null
