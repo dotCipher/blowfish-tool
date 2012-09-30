@@ -198,7 +198,7 @@ int isSameFiles(char *in_path, char *out_path){
 int main(int argc, char *argv[]){
   // 1=Enable Debug Mode
   // 0=Disable Debug Mode
-  int DEBUG = 1;
+  int DEBUG = 0;
   int i = 0; // General purpose index
   
   /* Initialize from and to buffers to OS pagesize */
@@ -214,7 +214,7 @@ int main(int argc, char *argv[]){
 	char *password_final;
   char temp_buf[17];
   char temp_buf_chk[17];
-  char rcs_vers[18] = "$Revision: 1.25 $";
+  char rcs_vers[18] = "$Revision: 1.26 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   

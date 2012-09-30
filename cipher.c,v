@@ -1,10 +1,15 @@
-head	1.25;
+head	1.26;
 access;
 symbols;
 locks
-	root:1.25; strict;
+	root:1.26; strict;
 comment	@ * @;
 
+
+1.26
+date	2012.09.30.21.36.47;	author root;	state Exp;
+branches;
+next	1.25;
 
 1.25
 date	2012.09.30.21.34.43;	author root;	state Exp;
@@ -137,9 +142,9 @@ desc
 @
 
 
-1.25
+1.26
 log
-@Added mmap() - unfinished
+@Removed debug flag
 @
 text
 @#include <stdio.h>
@@ -342,7 +347,7 @@ int isSameFiles(char *in_path, char *out_path){
 int main(int argc, char *argv[]){
   // 1=Enable Debug Mode
   // 0=Disable Debug Mode
-  int DEBUG = 1;
+  int DEBUG = 0;
   int i = 0; // General purpose index
   
   /* Initialize from and to buffers to OS pagesize */
@@ -358,7 +363,7 @@ int main(int argc, char *argv[]){
 	char *password_final;
   char temp_buf[17];
   char temp_buf_chk[17];
-  char rcs_vers[18] = "$Revision: 1.24 $";
+  char rcs_vers[18] = "$Revision: 1.25 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -1128,6 +1133,20 @@ int main(int argc, char *argv[]){
   }
   exit(0);
 }
+@
+
+
+1.25
+log
+@Added mmap() - unfinished
+@
+text
+@d201 1
+a201 1
+  int DEBUG = 1;
+d217 1
+a217 1
+  char rcs_vers[18] = "$Revision: 1.24 $";
 @
 
 
