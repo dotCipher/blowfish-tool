@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -192,17 +193,20 @@ int isSameFiles(char *in_path, char *out_path){
  * 6 = <infile> OR <outfile> is directory
  * 7 = Same file error
  * 8 = File i/o OR permission error
+ * 9 = Memory Map OR Lseek error
  */
 int main(int argc, char *argv[]){
   // 1=Enable Debug Mode
   // 0=Disable Debug Mode
-  int DEBUG = 0;
+  int DEBUG = 1;
   int i = 0; // General purpose index
   
   /* Initialize from and to buffers to OS pagesize */
   int page_size=getpagesize();
   unsigned char *from;
-  unsigned char *to; 
+  unsigned char *to;
+  unsigned char *r_mmap;
+  unsigned char *w_mmap;
 
   /* Temp buffer to store user input (user password) */
 	const int PASS_MAX = 16;  
@@ -210,7 +214,7 @@ int main(int argc, char *argv[]){
 	char *password_final;
   char temp_buf[17];
   char temp_buf_chk[17];
-  char rcs_vers[18] = "$Revision: 1.24 $";
+  char rcs_vers[18] = "$Revision: 1.25 $";
   char *rcs_vers_cp,*version;
   int passArgNum = 0;
   
@@ -226,7 +230,7 @@ int main(int argc, char *argv[]){
   int bytes_write;
 
   /* Define boolean ints for params */
-  int deco, enco, vers, help, mmap, pass, opt, safe;
+  int deco, enco, vers, help, mmap_bool, pass, opt, safe;
   
   /* don't worry about these two: just define/use them */
   int n = 0;  /* internal blowfish variables */
@@ -250,7 +254,7 @@ int main(int argc, char *argv[]){
   
   /* Initialize and check params */
   stdin_bool = 0; stdout_bool = 0; errno = 0;
-  deco = 0; enco = 0; vers = 0; help = 0; mmap = 0; pass = 0; safe = 0;
+  deco = 0; enco = 0; vers = 0; help = 0; mmap_bool = 0; pass = 0; safe = 0;
   while((opt = getopt(argc, argv, "devhmsp:")) != -1) {
     switch(opt){
     case 'd':
@@ -266,7 +270,7 @@ int main(int argc, char *argv[]){
       help = 1;
       break;
     case 'm':
-      mmap = 1;
+      mmap_bool = 1;
       break;
     case 's':
       safe = 1;
@@ -295,7 +299,7 @@ int main(int argc, char *argv[]){
   if(DEBUG==1){
     printf("\n[----- DEBUGGING ENABLED -----]\n");
     printf("To disable, change DEBUG variable in cipher.c from 1 to 0 and remake\n");
-    printf("\ndecode=%i \nencode=%i \nversion=%i \nhelp=%i \nmmap=%i \npass=%i \nsafe=%i\n", deco, enco, vers, help, mmap, pass, safe);
+    printf("\ndecode=%i \nencode=%i \nversion=%i \nhelp=%i \nmmap=%i \npass=%i \nsafe=%i\n", deco, enco, vers, help, mmap_bool, pass, safe);
 
     if(pass==1){
       printf("temp_buf=%s \npassArgNum=%i\n",temp_buf,passArgNum);
@@ -352,8 +356,7 @@ int main(int argc, char *argv[]){
       if(i==0){
         // <infile> DOES NOT exist
         fprintf(stderr,"Error Code 5: <infile> does not exist\n");
-        free(infile_name);
-        free(outfile_name);
+        free(infile_name); free(outfile_name);
         exit(5);
       } else if(i==2){
       	// <infile> DOES exist
@@ -361,8 +364,7 @@ int main(int argc, char *argv[]){
       	if((isDirectory(infile_name))!=1){
       		// <infile> DOES exist AND is a directory
         	fprintf(stderr,"Error Code 6: <infile> is a directory\n");
-        	free(infile_name);
-       		free(outfile_name);
+        	free(infile_name); free(outfile_name);
       	  exit(6);
       	}
       } else {
@@ -384,8 +386,7 @@ int main(int argc, char *argv[]){
     	} else if((isDirectory(outfile_name))!=1){
     		// <outfile> DOES exist AND is directory
     		fprintf(stderr,"Error Code 6: <outfile> is a directory\n");
-    		free(infile_name);
-    		free(outfile_name);
+    		free(infile_name); free(outfile_name);
     		exit(6);
     	} else {
     		// <outfile> DOES exist AND is NOT a directory
@@ -402,32 +403,27 @@ int main(int argc, char *argv[]){
     	if(sf_code==1){
     		// Paths are the same references
     		fprintf(stderr,"Error Code 7: <infile> and <outfile> are the same path\n");
-    		free(infile_name);
-    		free(outfile_name);
+    		free(infile_name); free(outfile_name);
     		exit(7);
     	} else if(sf_code==2){
     		// Hardlinks to same file
     		fprintf(stderr,"Error Code 7: <infile> and <outfile> are hardlinks to same file\n");
-    		free(infile_name);
-    		free(outfile_name);
+    		free(infile_name); free(outfile_name);
     		exit(7);
    	 } else if(sf_code==3){
  	   		// In/Out symlinks point to same file
  	   		fprintf(stderr,"Error Code 7: <infile> and <outfile> are symlinks to same file\n");
-    		free(infile_name);
-    		free(outfile_name);
+    		free(infile_name); free(outfile_name);
     		exit(7);
     	} else if(sf_code==4){
     		// Input symlink points to outfile
     		fprintf(stderr,"Error Code 7: <infile> symlink points to <outfile>\n");
-    		free(infile_name);
-    		free(outfile_name);
+    		free(infile_name); free(outfile_name);
     		exit(7);
     	} else if(sf_code==5){
     		// Output symlink points to infile
     		fprintf(stderr,"Error Code 7: <outfile> symlink points to <infile>\n");
-    		free(infile_name);
-   	 		free(outfile_name);
+    		free(infile_name); free(outfile_name);
   	  	exit(7);
   	  } else{
   	  	// No error, continue on
@@ -443,32 +439,27 @@ int main(int argc, char *argv[]){
     		case 1:
     			// Character Device
     			fprintf(stderr,"Error Code 7: <infile> is a character device\n");
-    			free(infile_name);
-    			free(outfile_name);
+    			free(infile_name); free(outfile_name);
     			exit(7);
     		case 2:
     			// Block Device
     			fprintf(stderr,"Error Code 7: <infile> is a block device\n");
-    			free(infile_name);
-    			free(outfile_name);
+    			free(infile_name); free(outfile_name);
     			exit(7);
     		case 3:
     			// FIFO - Named Pipe
     			fprintf(stderr,"Error Code 7: <infile> is a named pipe\n");
-    			free(infile_name);
-    			free(outfile_name);
+    			free(infile_name); free(outfile_name);
     			exit(7);
     		case 4:
     			// Socket
     			fprintf(stderr,"Error Code 7: <infile> is a socket\n");
-    			free(infile_name);
-    			free(outfile_name);
+    			free(infile_name); free(outfile_name);
     			exit(7);
     		case 5:
     			// Directory
     			fprintf(stderr,"Error Code 7: <infile> is a directory\n");
-    			free(infile_name);
-    			free(outfile_name);
+    			free(infile_name); free(outfile_name);
     			exit(7);
     	}
     }
@@ -480,32 +471,27 @@ int main(int argc, char *argv[]){
     		case 1:
     			// Character Device
     			fprintf(stderr,"Error Code 7: <outfile> is a character device\n");
-    			free(infile_name);
-    			free(outfile_name);
+    			free(infile_name); free(outfile_name);
     			exit(7);
     		case 2:
     			// Block Device
     			fprintf(stderr,"Error Code 7: <outfile> is a block device\n");
-    			free(infile_name);
-    			free(outfile_name);
+    			free(infile_name); free(outfile_name);
     			exit(7);
     		case 3:
     			// FIFO - Named Pipe
     			fprintf(stderr,"Error Code 7: <outfile> is a named pipe\n");
-    			free(infile_name);
-    			free(outfile_name);
+    			free(infile_name); free(outfile_name);
     			exit(7);
     		case 4:
     			// Socket
     			fprintf(stderr,"Error Code 7: <outfile> is a socket\n");
-    			free(infile_name);
-    			free(outfile_name);
+    			free(infile_name); free(outfile_name);
     			exit(7);
     		case 5:
     			// Directory
     			fprintf(stderr,"Error Code 7: <infile> is a directory\n");
-    			free(infile_name);
-    			free(outfile_name);
+    			free(infile_name); free(outfile_name);
     			exit(7);
     	}
     }
@@ -596,8 +582,8 @@ int main(int argc, char *argv[]){
    	} else {
    		// Error both -p and -s given
    		fprintf(stderr,"Error Code 3: Cannot use \'-p\' and \'-s\'\n");
-   		free(infile_name);
-   		free(outfile_name);
+   		free(password_final);
+    	free(infile_name); free(outfile_name);
    		exit(3);
    	}
     // temp_buf contains the right password for encryption or decryption
@@ -619,8 +605,8 @@ int main(int argc, char *argv[]){
    	 }
     	if(infile_fd==-1){
     		perror("Error Code 8: On <infile> ");
-    		free(infile_name);
-    		free(outfile_name);
+    		free(password_final);
+    		free(infile_name); free(outfile_name);
     		exit(8);
     	}
     } else {
@@ -631,14 +617,14 @@ int main(int argc, char *argv[]){
     // Open up outfile fd
     if(stdout_bool==0){
     	errno=0;
-    	outfile_fd=open(outfile_name, O_WRONLY | O_CREAT | O_TRUNC | O_APPEND, S_IWRITE);
+    	outfile_fd=open(outfile_name, O_RDWR | O_CREAT | O_TRUNC | O_APPEND, S_IWRITE);
     	if(DEBUG==1){
     		printf("outfile_fd= %i \n",outfile_fd);
     	}
     	if(outfile_fd==-1){
     		perror("Error Code 8: On <outfile> ");
-    		free(infile_name);
-    		free(outfile_name);
+    		free(password_final);
+    		free(infile_name); free(outfile_name);
     		exit(8); 
     	}
     } else {
@@ -650,6 +636,12 @@ int main(int argc, char *argv[]){
     from = (unsigned char*)malloc(page_size);
     memset(to,0,page_size);
     memset(from,0,page_size);
+    
+    // Initialize mmap buffers
+    r_mmap = (unsigned char*)malloc(page_size);
+    w_mmap = (unsigned char*)malloc(page_size);
+    memset(r_mmap,0,page_size);
+    memset(w_mmap,0,page_size);
     
     ///// [---------- DECRYPTION START ----------] /////
     if(deco==1 && enco==0){
@@ -663,25 +655,66 @@ int main(int argc, char *argv[]){
 			// Start reading the bytes of length page_size from infile
 			bytes_read = -1;
     	while(bytes_read!=0){
-    		bytes_read=read(infile_fd,from,page_size);
+    		if(mmap_bool==1){
+    			errno=0;
+    			bytes_read=lseek(infile_fd,page_size,SEEK_SET);
+    			if(errno!=0){
+    				perror("Error Code 9: On <infile> ");
+    				free(password_final);
+    				free(infile_name); free(outfile_name);
+    				free(to); free(from);
+  					free(r_mmap); free(w_mmap);
+    				close(infile_fd); close(outfile_fd);
+    				exit(9);
+    			}
+    			errno=0;
+    			r_mmap=mmap(NULL,page_size,PROT_READ,MAP_SHARED,infile_fd,0);
+    			if(errno!=0){
+    				perror("Error Code 9: On <infile> ");
+    				free(password_final);
+    				free(infile_name); free(outfile_name);
+    				free(to); free(from);
+  					free(r_mmap); free(w_mmap);
+    				close(infile_fd); close(outfile_fd);
+    				exit(9);
+    			}
+    		} else {
+    			bytes_read=read(infile_fd,from,page_size);
+    		}
     		if(DEBUG==1){
     			printf("\nbytes_read=%i\n",bytes_read);
     		}
     		if(bytes_read==-1){
     			// Maybe partial read encountered?
     			perror("Error Code 8: On <infile> ");
-    			free(infile_name);
-    			free(outfile_name);
-    			close(infile_fd);
-    			close(outfile_fd);
+    			free(password_final);
+    			free(infile_name); free(outfile_name);
+    			free(to); free(from);
+  				free(r_mmap); free(w_mmap);
+    			close(infile_fd); close(outfile_fd);
     			exit(8);
-    		} else if(bytes_read > 0){
-    			// Decrypt the buffer
-    			BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_DECRYPT);
+   			} else if(bytes_read > 0){
     			// Was the read even with page_size?
     			if(bytes_read == page_size){
     				// Write buffer
-    				bytes_write=write(outfile_fd,to,page_size);
+    				if(mmap_bool==1){
+    					bytes_write=lseek(outfile_fd,page_size,SEEK_SET);
+    					errno=0;
+    					w_mmap=mmap(NULL,page_size,PROT_READ | PROT_WRITE,MAP_SHARED,outfile_fd,0);
+    					if(errno!=0){
+    						perror("Error Code 9: On <outfile> ");
+    						free(password_final);
+    						free(infile_name); free(outfile_name);
+    						free(to); free(from);
+  							free(r_mmap); free(w_mmap);
+    						close(infile_fd); close(outfile_fd);
+    						exit(9);
+    					}
+    					BF_cfb64_encrypt(r_mmap, w_mmap, page_size, &key, iv, &n, BF_DECRYPT);
+    				} else {
+    					BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_DECRYPT);
+    					bytes_write=write(outfile_fd,to,page_size);
+    				}
     				if(DEBUG==1){
     					printf("bytes_read == page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
@@ -689,35 +722,77 @@ int main(int argc, char *argv[]){
     				if(bytes_write==-1){
     					// Maybe partial write encountered?
     					perror("Error Code 8: On <outfile> ");
-    					free(infile_name);
-    					free(outfile_name);
-    					close(infile_fd);
-    					close(outfile_fd);
+    					free(password_final);
+    					free(infile_name); free(outfile_name);
+    					free(to); free(from);
+  						free(r_mmap); free(w_mmap);
+    					close(infile_fd); close(outfile_fd);
     					exit(8);
     				}
     			} else if(bytes_read < page_size){
     				// Last iteration
     				// Write buffer
-    				bytes_write=write(outfile_fd,to,bytes_read);
+    				if(mmap_bool==1){
+    					bytes_write=lseek(outfile_fd,bytes_read,SEEK_SET);
+    					errno=0;
+    					w_mmap=mmap(NULL,bytes_read,PROT_READ | PROT_WRITE,MAP_SHARED,outfile_fd,0);
+    					if(errno!=0){
+    						perror("Error Code 9: On <outfile> ");
+    						free(password_final);
+    						free(infile_name); free(outfile_name);
+    						free(to); free(from);
+  							free(r_mmap); free(w_mmap);
+    						close(infile_fd); close(outfile_fd);
+    						exit(9);
+    					}
+    					BF_cfb64_encrypt(r_mmap, w_mmap, page_size, &key, iv, &n, BF_DECRYPT);
+    				} else {
+    					BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_DECRYPT);
+    					bytes_write=write(outfile_fd,to,bytes_read);
+    				}
     				if(DEBUG==1){
     					printf("bytes_read < page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
-    				}
-    				if(bytes_write==-1){
-    					// Maybe partial write encountered?
+  	  			}
+ 	   				if(bytes_write==-1){
+  	  				// Maybe partial write encountered?
     					perror("Error Code 8: On <outfile> ");
-    					free(infile_name);
-    					free(outfile_name);
-    					close(infile_fd);
-    					close(outfile_fd);
+    					free(password_final);
+    					free(infile_name); free(outfile_name);
+    					free(to); free(from);
+  						free(r_mmap); free(w_mmap);
+    					close(infile_fd); close(outfile_fd);
     					exit(8);
     				}
     			}
     			// Clear buffers
     			memset(to,0,page_size);
     			memset(from,0,page_size);
+    			memset(r_mmap,0,page_size);
+    			memset(w_mmap,0,page_size);
     		} // else bytes_read == 0, terminate while
     	}
+    if(mmap_bool==1){
+    	// Unmap the memory if used
+    	if(munmap(r_mmap,page_size)==-1){
+    		perror("Error Code 9: On <infile> ");
+    		free(password_final);
+    		free(infile_name); free(outfile_name);
+    		free(to); free(from);
+  			free(r_mmap); free(w_mmap);
+    		close(infile_fd); close(outfile_fd);
+    		exit(9);
+    	}
+    	if(munmap(w_mmap,page_size)==-1){
+    		perror("Error Code 9: On <outfile> ");
+    		free(password_final);
+    		free(infile_name); free(outfile_name);
+    		free(to); free(from);
+  			free(r_mmap); free(w_mmap);
+    		close(infile_fd); close(outfile_fd);
+    		exit(9);
+    	}
+    }
     if(stdout_bool==0){
     	printf("Saving to: %s \n",outfile_name);
     }
@@ -735,25 +810,76 @@ int main(int argc, char *argv[]){
     	// Start reading the bytes of length page_size from infile
     	bytes_read=-1;
     	while(bytes_read!=0){
-    		bytes_read=read(infile_fd,from,page_size);
+    		if(mmap_bool==1){
+    			errno=0;
+    			bytes_read=lseek(infile_fd,page_size,SEEK_SET);
+    			if(errno!=0){
+    				perror("Error Code 9: On <infile> ");
+    				free(password_final);
+    				free(infile_name); free(outfile_name);
+    				free(to); free(from);
+  					free(r_mmap); free(w_mmap);
+    				close(infile_fd); close(outfile_fd);
+    				exit(9);
+    			}
+    			errno=0;
+    			r_mmap=(unsigned char *)mmap(NULL,page_size,PROT_READ,MAP_SHARED,infile_fd,0);
+    			if(errno!=0){
+    				perror("Error Code 9: On <infile> ");
+    				free(password_final);
+    				free(infile_name); free(outfile_name);
+    				free(to); free(from);
+  					free(r_mmap); free(w_mmap);
+    				close(infile_fd); close(outfile_fd);
+    				exit(9);
+    			}
+    		} else {
+    			bytes_read=read(infile_fd,from,page_size);
+    		}
     		if(DEBUG==1){
     			printf("\nbytes_read=%i\n",bytes_read);
     		}
     		if(bytes_read==-1){
     			// Maybe partial read encountered?
     			perror("Error Code 8: On <infile> ");
-    			free(infile_name);
-    			free(outfile_name);
-    			close(infile_fd);
-    			close(outfile_fd);
+    			free(password_final);
+    			free(infile_name); free(outfile_name);
+    			free(to); free(from);
+  				free(r_mmap); free(w_mmap);
+    			close(infile_fd); close(outfile_fd);
     			exit(8);
     		} else if(bytes_read > 0){
-    			// Encrypt the buffer
-    			BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_ENCRYPT);
     			// Was the read even with page_size?
     			if(bytes_read == page_size){
     				// Write buffer
-						bytes_write=write(outfile_fd,to,page_size);
+    				if(mmap_bool==1){
+    					errno=0;
+    					bytes_write=lseek(outfile_fd,page_size,SEEK_SET);
+    					if(errno!=0){
+    						perror("Error Code 9: On <outfile> ");
+    						free(password_final);
+    						free(infile_name); free(outfile_name);
+    						free(to); free(from);
+  							free(r_mmap); free(w_mmap);
+    						close(infile_fd); close(outfile_fd);
+    						exit(9);
+    					}
+    					errno=0;
+    					w_mmap=(unsigned char *)mmap(NULL,page_size,PROT_WRITE,MAP_SHARED,outfile_fd,0);
+    					if(errno!=0){
+    						perror("Error Code 9: On <outfile> ");
+    						free(password_final);
+    						free(infile_name); free(outfile_name);
+    						free(to); free(from);
+  							free(r_mmap); free(w_mmap);
+    						close(infile_fd); close(outfile_fd);
+    						exit(9);
+    					}
+    					BF_cfb64_encrypt(r_mmap, w_mmap, page_size, &key, iv, &n, BF_ENCRYPT);
+    				} else {
+    					BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_ENCRYPT);
+							bytes_write=write(outfile_fd,to,page_size);
+						}
     				if(DEBUG==1){
     					printf("bytes_read == page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
@@ -761,16 +887,34 @@ int main(int argc, char *argv[]){
     				if(bytes_write==-1){
     					// Maybe partial write encountered?
     					perror("Error Code 8: On <outfile> ");
-    					free(infile_name);
-    					free(outfile_name);
-    					close(infile_fd);
-    					close(outfile_fd);
+    					free(password_final);
+    					free(infile_name); free(outfile_name);
+    					free(to); free(from);
+  						free(r_mmap); free(w_mmap);
+    					close(infile_fd); close(outfile_fd);
     					exit(8);
     				}
     			} else if(bytes_read < page_size){
     				// Last iteration
     				// Write buffer to file
-						bytes_write=write(outfile_fd,to,bytes_read);
+    				if(mmap_bool==1){
+    					bytes_write=lseek(outfile_fd,bytes_read,SEEK_SET);
+    					errno=0;
+    					w_mmap=(unsigned char *)mmap(NULL,bytes_read,PROT_READ | PROT_WRITE,MAP_SHARED,outfile_fd,0);
+    					if(errno!=0){
+    						perror("Error Code 9: On <outfile> ");
+    						free(password_final);
+    						free(infile_name); free(outfile_name);
+    						free(to); free(from);
+  							free(r_mmap); free(w_mmap);
+    						close(infile_fd); close(outfile_fd);
+    						exit(9);
+    					}
+    					BF_cfb64_encrypt(r_mmap, w_mmap, page_size, &key, iv, &n, BF_ENCRYPT);
+    				} else {
+    					BF_cfb64_encrypt(from, to, page_size, &key, iv, &n, BF_ENCRYPT);
+							bytes_write=write(outfile_fd,to,bytes_read);
+						}
     				if(DEBUG==1){
     					printf("bytes_read < page_size\n");
     					printf("bytes_write=%i\n",bytes_write);
@@ -778,18 +922,42 @@ int main(int argc, char *argv[]){
     				if(bytes_write==-1){
     					// Maybe partial write encountered?
     					perror("Error Code 8: On <outfile> ");
-    					free(infile_name);
-    					free(outfile_name);
-    					close(infile_fd);
-    					close(outfile_fd);
+    					free(password_final);
+    					free(infile_name); free(outfile_name);
+    					free(to); free(from);
+  						free(r_mmap); free(w_mmap);
+    					close(infile_fd); close(outfile_fd);
     					exit(8);
     				}
     			}
     			// Clear buffers
     			memset(to,0,page_size);
     			memset(from,0,page_size);
+    			memset(r_mmap,0,page_size);
+    			memset(w_mmap,0,page_size);
     		} // else bytes_read == 0, terminate while
     	}
+    if(mmap_bool==1){
+    	// Unmap the memory if used
+    	if(munmap(r_mmap,page_size)==-1){
+    		perror("Error Code 9: On <infile> ");
+    		free(password_final);
+    		free(infile_name); free(outfile_name);
+    		free(to); free(from);
+  			free(r_mmap); free(w_mmap);
+    		close(infile_fd); close(outfile_fd);
+    		exit(9);
+    	}
+    	if(munmap(w_mmap,page_size)==-1){
+    		perror("Error Code 9: On <outfile> ");
+    		free(password_final);
+    		free(infile_name); free(outfile_name);
+    		free(to); free(from);
+  			free(r_mmap); free(w_mmap);
+    		close(infile_fd); close(outfile_fd);
+    		exit(9);
+    	}
+    }
     if(stdout_bool==0){
     	printf("Saving to: %s \n",outfile_name);
     }
@@ -800,17 +968,14 @@ int main(int argc, char *argv[]){
       fprintf(stderr,"Error Code 3: Invalid execution\n");
       fprintf(stderr,"Must use EITHER Encrypt (-e) OR Decrypt (-d)\n");
       fprintf(stderr,"       i.e.  %s [-e|-d] <infile> <outfile>\n",argv[0]);
-      free(infile_name);
-      free(outfile_name);
+      free(infile_name); free(outfile_name);
       exit(3);
     }
-  	free(infile_name);
-  	free(outfile_name);
-  	free(to);
-  	free(from);
   	free(password_final);
-  	close(infile_fd);
-  	close(outfile_fd);
+    free(infile_name); free(outfile_name);
+    free(to); free(from);
+  	free(r_mmap); free(w_mmap);
+    close(infile_fd); close(outfile_fd);
   } else{
  		fprintf(stderr,"Error Code 3: Invalid execution\n");
     fprintf(stderr,"Must include <infile> and <outfile> parameters\n");
