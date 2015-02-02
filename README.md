@@ -1,11 +1,9 @@
-===== Blowfish Cipher Tool =====
+# Blowfish Cipher Tool
 Author: Cody Moore
 
 This program allows the user to either encrypt and decrypt any given file or string using the blowfish encryption algorithm.  A password must be provided for either use that is used for the key.
 
-
-
-== Description ==
+## Description
 
 The Blowfish Cipher Tool was made for the purpose of either encrypting or decrypting a file or string.  It currently uses the blowfish encryption algorithm that conforms to Netscapes SSL, developed by Eric Young (C) 1995-1997. The blowfish encryption algorithm was first designed by Bruce Schneier in 1993.
 
@@ -13,7 +11,7 @@ This program includes a few helper methods for error checking on conditions such
 
 
 
-== Installation ==
+## Installation
 
 To install, run the command:
 
@@ -31,8 +29,7 @@ then,
 		make
 
 
-
-== Usage ==
+## Usage
 
 ./cipher [OPTIONS] [-p PASSWORD] <infile> <outfile>
 
@@ -47,7 +44,7 @@ Options are as follows:
 
 
 
-== Changelog ==
+## Changelog
 
 ----------------------------
 revision 1.26
