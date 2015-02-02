@@ -34,6 +34,7 @@ then,
 ./cipher [OPTIONS] [-p PASSWORD] <infile> <outfile>
 
 Options are as follows:
+```
    -p [PASS] :  Use [PASS] as password (skip prompt)
    -d        :  Decrypt <infile> to <outfile>
    -e        :  Encrypt <infile> to <outfile>
@@ -41,7 +42,7 @@ Options are as follows:
    -h        :  Show help screen
    -m        :  Enable memory mapping - mmap()
    -s        :  Safe Mode (prompt for password twice)
-
+```
 
 
 ## Changelog
